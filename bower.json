@@ -1,0 +1,29 @@
+{
+    "name": "fcoo-maps-niord",
+    "version": "0.0.0",
+    "homepage": "https://github.com/FCOO/fcoo-maps-niord",
+    "authors": [
+        "Niels Holt"
+    ],
+    "description": "",
+    "main": "dist/fcoo-maps-niord.js",
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/FCOO/fcoo-maps-niord.git"
+    },
+    "dependencies": {
+        "fcoo-maps": "fcoo/fcoo-maps#latest",
+        "leaflet-bootstrap-niord": "fcoo/leaflet-bootstrap-niord#^4.0.0"
+    },
+    "license": "MIT",
+    "ignore": [
+        "**/.*",
+        "node_modules",
+        "bower_components",
+        "test",
+        "tests"
+    ],
+    "moduleType": [
+        "es6"
+    ]
+}
