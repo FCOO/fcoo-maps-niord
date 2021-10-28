@@ -25010,12 +25010,6 @@ lbm-puls          : Has a pulsing ring
 lbm-transparent   : Inner color get opacity: 0.7
 lbm-hover         : When hover: get shadow and opacity: 0.9 for ibm-transparent
 ************************************************/
-/***********************************************
-
-leaflet-bootstrap-marker-colors.scss
-List of avaible color-name and values
-
-************************************************/
 /***********************************************************************
 
 leaflet-bootstrap-marker-mixin.scss
@@ -25038,6 +25032,29 @@ fa-lbm-color
 Create class for color and border-color used by L.bsMarkerAsIcon (and $.bsMarkerAsIcon)
 to create fa-icon looking like the marker
 *************************************************************************/
+/***********************************************
+leaflet-bootstrap-marker.scss
+
+lbm-type-TYPE lbm-color-COLOR [lbm-border-color-COLOR] [lbm-transparent] [lbm-puls] [lbm-hover]
+
+lbm-type-TYPE     : Sets the different type of bsMarker
+lbm-[COLOR]       : Sets inner color to [COLOR]
+lbm-border-[COLOR]: border-color = [COLOR]
+
+lbm-shadow        : Shadow in same color as inner color
+lbm-puls          : Has a pulsing ring
+lbm-transparent   : Inner color get opacity: 0.7
+lbm-hover         : When hover: get shadow and opacity: 0.9 for ibm-transparent
+************************************************/
+/***********************************************
+
+leaflet-bootstrap-marker-colors.scss
+List of avaible color-name and values
+
+************************************************/
+/***********************************************
+leaflet-bootstrap-marker-base.scss
+************************************************/
 .fa-lbm-color-pink {
   color: pink; }
 
@@ -25442,7 +25459,7 @@ https://github.com/mapshakers/leaflet-icon-pulse
 
 .lbm-type-circle {
   opacity: 1;
-  border: 2px solid black;
+  border: 1px solid black;
   box-shadow: 0px 0px 0px 1px rgba(255, 255, 255, 0.5);
   background-color: #fff;
   color: #000;
@@ -25477,7 +25494,7 @@ https://github.com/mapshakers/leaflet-icon-pulse
     animation: pulsate 1s ease-out;
     animation-iteration-count: infinite; }
   .lbm-type-circle .inner {
-    font-size: calc(.7em - 4px); }
+    font-size: calc(.7em - 2px); }
 
 .lbm-type-circle.lbm-color-pink {
   background-color: pink;
@@ -29042,84 +29059,18 @@ when loading or not visible
   display: none !important; }
 
 /***********************************************
-	jquery-bootstrap-niord.scss,
+	fcoo-maps-colors.scss,
 
-	(c) 2018, FCOO
+	(c) 2021, FCOO
 
-	https://github.com/FCOO/jquery-bootstrap-niord
+	https://github.com/FCOO/fcoo-maps-colors
 	https://github.com/FCOO
 
 
 ************************************************/
-.niord-modal-content p, .niord-modal-content ul {
-  margin: 0; }
-
-.niord-modal-content table {
-  word-break: normal; }
-  .niord-modal-content table tr th {
-    vertical-align: bottom; }
-  .niord-modal-content table tr td {
-    vertical-align: top; }
-  .niord-modal-content table:not([class]) td {
-    border: 1px solid #999;
-    padding: 3px; }
-
-.niord-modal-content hr {
-  margin-top: 3px;
-  margin-bottom: 3px;
-  border-color: #afb4ba; }
-
-.niord-modal-content .display-anchor-as-block a {
-  display: block; }
-
-.parent-list-container {
-  padding-top: 3px; }
-
-.table.time-period thead tr th:first-child {
-  padding-left: 7px;
-  box-shadow: inset 4px 0px 0px 0px #dee2e6; }
-
-.table.time-period thead tr th:last-child {
-  padding-right: 7px;
-  box-shadow: inset -4px 0px 0px 0px #dee2e6; }
-
-.table.time-period tbody tr.start-before-now.end-after-now td {
-  background-color: lightgreen; }
-
-.table.time-period tbody tr.first-after-now {
-  border-top: 4px solid lightgreen; }
-
-.table.time-period tbody tr td:first-child:not(:empty) {
-  padding-left: 7px; }
-
-.table.time-period tbody tr td:last-child:not(:empty) {
-  padding-right: 7px; }
-
-.table.time-period tbody tr.start-before-now td:first-child {
-  box-shadow: inset 4px 0px 0px 0px #7ABAE1; }
-
-.table.time-period tbody tr.start-after-now td:first-child {
-  box-shadow: inset 4px 0px 0px 0px #4D72B8; }
-
-.table.time-period tbody tr.end-before-now td:last-child {
-  box-shadow: inset -4px 0px 0px 0px #7ABAE1; }
-
-.table.time-period tbody tr.end-after-now td:last-child {
-  box-shadow: inset -4px 0px 0px 0px #4D72B8; }
-
-table.hide-first-column tr td:first-child {
-  display: none; }
-
-/***********************************************
-	leaflet-bootstrap-niord.scss,
-
-	(c) 2018, FCOO
-
-	https://github.com/FCOO/leaflet-bootstrap-niord
-	https://github.com/FCOO
-
-
-************************************************/
+/*********************************
+IMPORT UTILITIES
+*********************************/
 /***********************************************************************
 
 leaflet-bootstrap-marker-mixin.scss
@@ -29151,7 +29102,46 @@ to create fa-icon looking like the marker
 	https://github.com/FCOO
 
 ************************************************/
-/* Create the style for the four different domains */
+/*********************************
+FCOO-COLORS
+*********************************/
+/***********************************************
+	fcoo-colors-mixin.scss,
+
+	(c) 2021, FCOO
+
+	https://github.com/FCOO/fcoo-colors
+	https://github.com/FCOO
+
+
+************************************************/
+/*********************************
+FCOO-MAPS-COLORS-VARIABLES
+scss-variable with all colors
+*********************************/
+/***********************************************
+fcoo-maps-colors-variables
+
+Create all scss-variable with colors for different fcoo-maps layers
+
+************************************************/
+/**********************************************************
+NIORD
+**********************************************************/
+/*********************************
+STANDARD USER COLORS
+*********************************/
+/*********************************
+FCOO-MAPS-COLORS-NIORD
+Style for fcoo/fcoo-maps-niord
+*********************************/
+/***********************************************
+_fcoo-maps-colors-niord.scss
+
+Style for fcoo/fcoo-maps-niord / fcoo/jquery-bootstrap-niord
+
+Create the style for the four different domains
+************************************************/
 .lbm-type-circle.lbm-color-niord-fa {
   background-color: white;
   color: #000; }
@@ -29263,3 +29253,72 @@ to create fa-icon looking like the marker
 .lpl-base.lpl-border-niord-fe,
 .lpl-shadow.lpl-border-niord-fe {
   stroke: #7c0043; }
+
+/***********************************************
+	jquery-bootstrap-niord.scss,
+
+	(c) 2018, FCOO
+
+	https://github.com/FCOO/jquery-bootstrap-niord
+	https://github.com/FCOO
+
+
+************************************************/
+.niord-modal-content p, .niord-modal-content ul {
+  margin: 0; }
+
+.niord-modal-content table {
+  word-break: normal; }
+  .niord-modal-content table tr th {
+    vertical-align: bottom; }
+  .niord-modal-content table tr td {
+    vertical-align: top; }
+  .niord-modal-content table:not([class]) td {
+    border: 1px solid #999;
+    padding: 3px; }
+
+.niord-modal-content hr {
+  margin-top: 3px;
+  margin-bottom: 3px;
+  border-color: #afb4ba; }
+
+.niord-modal-content .display-anchor-as-block a {
+  display: block; }
+
+.parent-list-container {
+  padding-top: 3px; }
+
+.table.time-period thead tr th:first-child {
+  padding-left: 7px;
+  box-shadow: inset 4px 0px 0px 0px #dee2e6; }
+
+.table.time-period thead tr th:last-child {
+  padding-right: 7px;
+  box-shadow: inset -4px 0px 0px 0px #dee2e6; }
+
+.table.time-period tbody tr.start-before-now.end-after-now td {
+  background-color: lightgreen; }
+
+.table.time-period tbody tr.first-after-now {
+  border-top: 4px solid lightgreen; }
+
+.table.time-period tbody tr td:first-child:not(:empty) {
+  padding-left: 7px; }
+
+.table.time-period tbody tr td:last-child:not(:empty) {
+  padding-right: 7px; }
+
+.table.time-period tbody tr.start-before-now td:first-child {
+  box-shadow: inset 4px 0px 0px 0px #7ABAE1; }
+
+.table.time-period tbody tr.start-after-now td:first-child {
+  box-shadow: inset 4px 0px 0px 0px #4D72B8; }
+
+.table.time-period tbody tr.end-before-now td:last-child {
+  box-shadow: inset -4px 0px 0px 0px #7ABAE1; }
+
+.table.time-period tbody tr.end-after-now td:last-child {
+  box-shadow: inset -4px 0px 0px 0px #4D72B8; }
+
+table.hide-first-column tr td:first-child {
+  display: none; }
