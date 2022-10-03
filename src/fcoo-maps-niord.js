@@ -128,7 +128,7 @@
                 layout   : 'topCenter',
                 closeWith: ['button'],
                 content  : [
-                    $('<div class="font-weight-bold"/>').i18n({da:'Fejl', en:'Error'}),
+                    $('<div class="fw-bold"/>').i18n({da:'Fejl', en:'Error'}),
                     {
                         da: 'Der opstod en fejl under hentning af data med Navigationsadvarsler, Efterretninger for Søfarende samt Skydeområder og Skydeadvarsler fra Søfartsstyrelsen.<br>'+
                             'Prøv at indlæse siden igen lidt senere eller se informationerne på',
