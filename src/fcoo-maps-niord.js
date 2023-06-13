@@ -53,7 +53,6 @@
         latLng      : ''                //A la N12&deg;34'56" E12&deg;34'56"
     };
 
-
     //Set options for when modal and extended modal is available
 
     //openNewModal : If true a "new"-icon in small-modal will open a new modal. Typical used if small modals are use as popups and the screen is widther
@@ -86,8 +85,13 @@
     //tileUrl = url for the tile-layer of the map inside the bsModal-window
     //nsNiordOptionsLeaflet.tileUrl = 'http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
+
+
     //mapOptions = options for map-objects in modal-windows
-    $.extend(nsNiordOptionsLeaflet.mapOptions, {maxZoom: 18});
+    $.extend(nsNiordOptionsLeaflet.mapOptions, {
+        bsZoomControl: !window.bsIsTouch,   //Add bsZoom-control for no-touch browser
+        maxZoom      : 18
+    });
 
     //mmmIcons = class-names for different icons used in select of details in modal
     $.extend(nsNiordOptionsLeaflet.mmmIcons, {
