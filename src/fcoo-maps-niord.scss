@@ -1,0 +1,23 @@
+/***********************************************
+	fcoo-maps-niord.scss
+
+	https://github.com/FCOO/fcoo-maps-niord
+	https://github.com/FCOO
+
+
+************************************************/
+//COLOR-HELPER
+@import "../bower_components/sass-color-helpers/stylesheets/color-helpers";
+
+
+//FCOO-COLORS variables and methode
+@import "../bower_components/fcoo-colors/src/fcoo-colors-include";
+
+
+//Using the colors for past, now, and furfure from fcoo/fcoo-colors
+:root {
+    --jbn-time-past-color       : var( #{$_time-past-color-var}     );
+    --jbn-time-now-color        : var( #{$_time-now-color-var}      );
+    --jbn-time-now-text-color   : var( #{$_time-now-text-color-var} );
+    --jbn-time-future-color     : var( #{$_time-future-color-var}   );
+}

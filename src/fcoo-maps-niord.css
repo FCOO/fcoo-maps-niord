@@ -1,0 +1,73 @@
+@charset "UTF-8";
+/***********************************************
+	fcoo-maps-niord.scss
+
+	https://github.com/FCOO/fcoo-maps-niord
+	https://github.com/FCOO
+
+
+************************************************/
+/**********************************************************
+	fcoo-colors-include.scss,
+
+	https://github.com/FCOO/fcoo-colors
+	https://github.com/FCOO
+
+
+    Contain all include for a packages using
+    the scss-variables and scss-mixins of fcoo-colors
+
+    The scss file must also include
+
+    //COLOR-HELPER
+    @import "../bower_components/sass-color-helpers/stylesheets/color-helpers";
+
+    //LEAFLET-BOOTSTRAP-MARKER-MIXIN - mixin to create colors for marker (bsMarker)
+    @import "../bower_components/leaflet-bootstrap-marker-mixin/dist/leaflet-bootstrap-marker-mixin";
+
+    //LEAFLET-POLYLINE-MIXIN - mixin to create colors for polyline and polygon
+    @import "../bower_components/leaflet-polyline-mixin/dist/leaflet-polyline-mixin";
+
+**********************************************************/
+/**********************************************************
+	fcoo-colors-variables.scss,
+
+	https://github.com/FCOO/fcoo-colors
+	https://github.com/FCOO
+**********************************************************/
+/**********************************************************
+The color scheme is from LinkedIn and shown in linkedin-palette-screen.pdf
+**********************************************************/
+/**********************************************************
+Color for time = tree colors for the past, now, and the future
+**********************************************************/
+/**********************************************************
+Application color
+Defaults is = DALO color in "Forsvarsministeriets koncernfælles Designmanual 2018"
+Can be changed by mixin application-base-color( new-color )
+in src/_fcoo-color-mixin.scss
+**********************************************************/
+/**********************************************************
+    fcoo-colors-mixin.scss
+
+	https://github.com/FCOO/fcoo-colors
+	https://github.com/FCOO
+
+**********************************************************/
+/**********************************************************
+Functions to get colors in different (relative) gradients
+**********************************************************/
+/**********************************************************
+marker-and-polygon-color
+create color-classes for bsMarker and bsPolyline
+**********************************************************/
+/**********************************************************
+Application color
+Defaults is = DALO color in "Forsvarsministeriets koncernfælles Designmanual 2018"
+Can be changed by mixin application-base-color( new-color )
+**********************************************************/
+:root {
+  --jbn-time-past-color: var( --fc-time-past-color     );
+  --jbn-time-now-color: var( --fc-time-now-color      );
+  --jbn-time-now-text-color: var( --fc-time-now-text-color );
+  --jbn-time-future-color: var( --fc-time-future-color   ); }

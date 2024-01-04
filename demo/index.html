@@ -9,13 +9,16 @@
     <meta name='copyright' content='FCOO'>
     <meta name='owner' content='FCOO'>
 
-  <link  href="bower_components.css" rel="stylesheet">    
+    <link  href="bower_components.css" rel="stylesheet">    
+    <link  href="../src/fcoo-maps-niord.css" rel="stylesheet">
 </head>
 
 <body>
     <script>
         window.fcoo = window.fcoo || {};
         window.fcoo.DEMO_VERSION = true;
+        
+        
     </script>
 
     
@@ -23,6 +26,11 @@
     <script src="../src/fcoo-maps-niord.js"></script>
 
     <script>
+        //Read data from bal.fcoo.dk
+        window.fcoo.path.host = 'bal.fcoo.dk';
+
+
+        
         window.fcoo.map.createApplication(
             //options
             {

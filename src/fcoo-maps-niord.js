@@ -59,16 +59,23 @@
     nsNiordOptions.openNewModal = true;
 
     //normalModalExtendable : If true the mormal modal can extend to a version with map and inlined attachments.
-    nsNiordOptions.normalModalExtendable = ns.modernizrDevice.isDesktop || ns.modernizrDevice.isTablet;
+    nsNiordOptions.normalModalExtendable = true;
 
+    //modalIsExtended     : If true (and normalModalExtendable = true) the modal 'start' as extended (modal-option.isExtended: true)
+    nsNiordOptions.modalIsExtended     = ns.modernizrDevice.isDesktop || ns.modernizrDevice.isTablet;
+
+    //smallTableWithAllMessages: If true the table with all messages is single column
+    nsNiordOptions.smallTableWithAllMessages = ns.modernizrDevice.isPhone;
 
     //modalFooter = Footer in modal
-    nsNiordOptions.modalFooter = {
-        icon: 'fa-copyright',
-        text: 'name:dma',
-        link: 'link:dma'
-    };
-    nsNiordOptions.modalSmallFooter = null; //OR nsNiordOptions.modalFooter;
+    nsNiordOptions.modalFooter = [
+            {icon: 'fa-copyright', text: 'name:dma', link: 'link:dma'},
+            {text: ['(','abbr:dma',')'], textClass:['me-0','me-0']}
+        ];
+
+    //modalSmallFooter = Footer in popup
+    nsNiordOptions.modalSmallFooter = nsNiordOptions.modalFooter;
+
 
     //domainOnlyHover = [domain-id] of boolean. If true => polygon only 'visible' on hover
     nsNiordOptions.domainOnlyHover = {fa: true};
@@ -173,12 +180,12 @@
                 domain       : options.domain,
                 backgroundWMS: options.backgroundWMS,
                 colorInfo    : options.colorInfo,
-                minZoom      : 6,
+                minZoom      : 5,
             },
             paneId          : 'NAVIGATION_NIORD',
             createPane      : true,
             createMarkerPane: true,
-            minZoom         : 6,
+            minZoom         : 5,
             buttonList      : niordLegendButtonList
         });
         nsMap.MapLayer.call(this, options);
