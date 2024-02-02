@@ -21,3 +21,10 @@
     --jbn-time-now-text-color   : var( #{$_time-now-text-color-var} );
     --jbn-time-future-color     : var( #{$_time-future-color-var}   );
 }
+
+
+//Rotate icons
+.fa-rotate-15  { transform: rotate(15deg); }
+.fa-rotate-115 { transform: rotate(115deg); }
+.fa-rotate-295 { transform: rotate(295deg); }
+.fa-rotate-345 { transform: rotate(345deg); }

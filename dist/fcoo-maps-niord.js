@@ -67,6 +67,36 @@
     //smallTableWithAllMessages: If true the table with all messages is single column
     nsNiordOptions.smallTableWithAllMessages = ns.modernizrDevice.isPhone;
 
+    //Option to set if domain "fa" (firing areas) and "fe" (actual firing exercises) are combined
+    nsNiordOptions.fa_fe_combined = true;
+
+    //When a messag is center-on-map the MapLayer is added to the map
+    nsNiordOptions.onCenterOnMap = function(message, map/*, elem*/){
+        nsMap.getMapLayer('navigation_niord_'+message.mainType).addTo(map);
+    };
+
+    //functions to be called when single massage are loaded
+    nsNiordOptions.loadingOn  = ns.workingOn;
+    nsNiordOptions.loadingOff = ns.workingOff;
+
+    //getDefaultMap return the default map to be used
+    nsNiordOptions.getDefaultMap = function(){ return nsMap.mainMap; };
+
+
+    //Sets icon for different domains
+    var faIcon   = L.bsMarkerAsIcon('niord-fa', 'niord-fa', {faClassName: 'fa-triangle',     extraClassName:'fa-rotate-345'}),
+        feIcon   = L.bsMarkerAsIcon('niord-fe', 'niord-fe', {faClassName: 'fa-triangle',     extraClassName:'fa-rotate-15' }),
+
+        faIcon2  = L.bsMarkerAsIcon('niord-fa', 'niord-fa', {faClassName: 'fa-diamond-half', extraClassName:'fa-rotate-295'}),
+        feIcon2  = L.bsMarkerAsIcon('niord-fe', 'niord-fe', {faClassName: 'fa-diamond-half', extraClassName:'fa-rotate-115'}),
+
+        fafeIcon = [faIcon2[0].concat(feIcon2[0])];
+
+    nsNiordOptions.domainIcon.fa = faIcon;
+    nsNiordOptions.domainIcon.fe = feIcon;
+    nsNiordOptions.domainIcon['fa-fe'] = fafeIcon;
+
+
     //modalFooter = Footer in modal
     nsNiordOptions.modalFooter = [
             {icon: 'fa-copyright', text: 'name:dma', link: 'link:dma'},
@@ -76,13 +106,14 @@
     //modalSmallFooter = Footer in popup
     nsNiordOptions.modalSmallFooter = nsNiordOptions.modalFooter;
 
-
     //domainOnlyHover = [domain-id] of boolean. If true => polygon only 'visible' on hover
     nsNiordOptions.domainOnlyHover = {fa: true};
 
     //Icon for filter rest-button = gray filter with cross over
     nsNiordOptions.resetFilterIcon = [['fal text-secondary fa-filter', 'fa-times']];
 
+    //Icon for show-on-map in list of messages
+    nsNiordOptions.showonMapIcon = 'fa-map-location-dot';
 
     /**********************************************************
     options for leaflet-bootstrap-niord
@@ -157,19 +188,27 @@
     };
     */
 
-    /**************************************************
-    Add header (name) for the combines group of fa and fe
-    **************************************************/
-    i18next.addPhrases('niord', {
-        'fa-fe_plural': {da:'Skydeområder og -advarsler',   en:'Firing Areas and Warnings'}
-    });
 
-    //Use same buttons in legends
-    var niordOptions = window.Niord.options,
-        niordLegendButtonList = [
-            {icon: 'fa-th-list',                      text: {da:'Vis alle', en:'Show all'}, onClick: function(){ window.Niord.messages.asModal();  }},
-            {icon: niordOptions.partIcon.PUBLICATION, text: 'niord:PUBLICATION',            onClick: function(){ window.Niord.publications.show(); }}
-        ];
+    //Use same buttons in legends and main menu
+    function niordButtonList(mapLayer){
+        return [{
+            icon   : 'fa-th-list',
+            text   : {da:'Vis alle', en:'Show all'},
+            class  :'min-width-5em',
+            onClick: function(/*id, selected, $button, map, owner*/){
+                var domain = mapLayer.options.domain.replace(' ', '-'); //Minor bug: if domain = "fa fe" it must be "fa-fe" :-(
+                nsNiord.messages.forceFilterDomain = domain;
+                nsNiord.messages.asModal.apply(nsNiord.messages, arguments);
+            }
+        },{
+            icon   : nsNiordOptions.partIcon.PUBLICATION,
+            text   : 'niord:publ',
+            class  :'min-width-5em',
+            onClick: function(/*id, selected, $button, map, owner*/){
+                nsNiord.publications.show();
+            }
+        }];
+    }
 
     /**************************************************
     MapLayer_Niord = Extended MapLayer with Niord-data
@@ -186,7 +225,7 @@
             createPane      : true,
             createMarkerPane: true,
             minZoom         : 5,
-            buttonList      : niordLegendButtonList
+            buttonList      : niordButtonList(this)
         });
         nsMap.MapLayer.call(this, options);
     }
@@ -230,9 +269,9 @@
             nsMap._addMapLayer('navigation_niord_fa', MapLayer_Niord, {
                 domain          : 'fa fe',
                 backgroundWMS   : 'firing-areas-dk_latest',
-                icon            : L.bsMarkerAsIcon('niord-fe', 'niord-fe', {faClassName: 'fa-triangle',    extraClassName:'fa-rotate-90'}),
+                icon            : fafeIcon,
                 text            : 'niord:fa-fe_plural',
-                buttonList      : niordLegendButtonList,
+                buttonList      : niordButtonList(this),
 
 /*TEST START
                 colorInfo: {
@@ -259,6 +298,26 @@
         });
 
         menuList.push( mapLayer.menuItemOptions() );
+
+        menuList.push({
+            type      : 'buttons',
+            buttonList: [{
+                icon   : 'fa-th-list',
+                text   : {da:'Vis alle', en:'Show all'},
+                class  :'min-width-5em',
+                onClick: function(){
+                    nsNiord.messages.asModal();
+                }
+            },{
+                icon   : nsNiordOptions.partIcon.PUBLICATION,
+                text   : {da: 'Publikationer', en: 'Publications' },
+                //text   : 'niord:publ',
+                class  :'min-width-5em',
+                onClick: function(){
+                    nsNiord.publications.show();
+                }
+            }]
+        });
 
         addMenu(menuList);
     };

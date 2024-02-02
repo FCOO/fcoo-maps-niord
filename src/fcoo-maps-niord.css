@@ -67,7 +67,24 @@ Defaults is = DALO color in "Forsvarsministeriets koncernfælles Designmanual 20
 Can be changed by mixin application-base-color( new-color )
 **********************************************************/
 :root {
-  --jbn-time-past-color: var( --fc-time-past-color     );
-  --jbn-time-now-color: var( --fc-time-now-color      );
+  --jbn-time-past-color: var( --fc-time-past-color );
+  --jbn-time-now-color: var( --fc-time-now-color );
   --jbn-time-now-text-color: var( --fc-time-now-text-color );
-  --jbn-time-future-color: var( --fc-time-future-color   ); }
+  --jbn-time-future-color: var( --fc-time-future-color );
+}
+
+.fa-rotate-15 {
+  transform: rotate(15deg);
+}
+
+.fa-rotate-115 {
+  transform: rotate(115deg);
+}
+
+.fa-rotate-295 {
+  transform: rotate(295deg);
+}
+
+.fa-rotate-345 {
+  transform: rotate(345deg);
+}
