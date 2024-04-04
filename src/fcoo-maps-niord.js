@@ -109,8 +109,11 @@
     //domainOnlyHover = [domain-id] of boolean. If true => polygon only 'visible' on hover
     nsNiordOptions.domainOnlyHover = {fa: true};
 
-    //Icon for filter rest-button = gray filter with cross over
-    nsNiordOptions.resetFilterIcon = [['fal text-secondary fa-filter', 'fa-times']];
+//    //Icon for filter rest-button = gray filter with cross over
+//    nsNiordOptions.resetFilterIcon = [['fal text-secondary fa-filter', 'fa-times']];
+
+    //Icon for filter rest-button = filter with slach over
+    nsNiordOptions.resetFilterIcon = 'fal fa-filter-slash';
 
     //Icon for show-on-map in list of messages
     nsNiordOptions.showonMapIcon = 'fa-map-location-dot';
