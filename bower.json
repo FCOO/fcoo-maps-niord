@@ -1,12 +1,15 @@
 {
   "name": "fcoo-maps-niord",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "homepage": "https://github.com/FCOO/fcoo-maps-niord",
   "authors": [
     "Niels Holt"
   ],
   "description": "",
-  "main": "dist/fcoo-maps-niord.js",
+  "main": [
+    "dist/fcoo-maps-niord.js",
+    "dist/fcoo-maps-niord.css"
+  ],
   "repository": {
     "type": "git",
     "url": "git://github.com/FCOO/fcoo-maps-niord.git"
