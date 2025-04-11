@@ -64,6 +64,10 @@
     //modalIsExtended     : If true (and normalModalExtendable = true) the modal 'start' as extended (modal-option.isExtended: true)
     nsNiordOptions.modalIsExtended     = ns.modernizrDevice.isDesktop || ns.modernizrDevice.isTablet;
 
+    //modalInFullScreen   : If true the modal is in size = full-screen.  Normally on phones and other small screens
+    nsNiordOptions.modalInFullScreen  = ns.modernizrDevice.isPhone;
+
+
     //smallTableWithAllMessages: If true the table with all messages is single column
     nsNiordOptions.smallTableWithAllMessages = ns.modernizrDevice.isPhone;
 
@@ -192,6 +196,8 @@
     */
 
 
+
+
     //Use same buttons in legends and main menu
     function niordButtonList(mapLayer){
         return [{
@@ -201,6 +207,7 @@
             onClick: function(/*id, selected, $button, map, owner*/){
                 var domain = mapLayer.options.domain.replace(' ', '-'); //Minor bug: if domain = "fa fe" it must be "fa-fe" :-(
                 nsNiord.messages.forceFilterDomain = domain;
+                
                 nsNiord.messages.asModal.apply(nsNiord.messages, arguments);
             }
         },{
@@ -223,6 +230,7 @@
                 backgroundWMS: options.backgroundWMS,
                 colorInfo    : options.colorInfo,
                 minZoom      : 5,
+                messages     : nsNiord.messages                    
             },
             paneId          : 'NAVIGATION_NIORD',
             createPane      : true,
@@ -303,13 +311,16 @@
         menuList.push( mapLayer.menuItemOptions() );
 
         menuList.push({
+            buttonPaddingLeft : true,
+            buttonPaddingRight: true,
+                
             type      : 'buttons',
             buttonList: [{
                 icon   : 'fa-th-list',
                 text   : {da:'Vis alle', en:'Show all'},
                 class  :'min-width-5em',
                 onClick: function(){
-                    nsNiord.messages.asModal();
+                    loadMess( (mess) => mess.asModal() );                    
                 }
             },{
                 icon   : nsNiordOptions.partIcon.PUBLICATION,
@@ -317,7 +328,7 @@
                 //text   : 'niord:publ',
                 class  :'min-width-5em',
                 onClick: function(){
-                    nsNiord.publications.show();
+                    loadPub( (pub) => pub.show() );
                 }
             }]
         });
@@ -325,5 +336,20 @@
         addMenu(menuList);
     };
 
+
+    /***************************************************************
+    loadMess, loadPub
+    A fix to load messages and publications sync
+    ****************************************************************/
+    function loadMess(response){ loadAny('messages', response); }
+    function loadPub(response){ loadAny('publications', response); }
+    function loadAny(id, response){
+        if (!nsNiord[id])
+            nsNiord.load();
+        if (nsNiord[id].status != 'LOADED')
+            nsNiord[id].resolveList.push({ resolve: () => response( nsNiord[id] ) });
+        else
+            response( nsNiord[id] );
+    }
 
 }(jQuery, L, this.i18next, this, document));
