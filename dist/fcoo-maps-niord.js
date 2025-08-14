@@ -15,6 +15,7 @@
 
     //Create namespaces
     var ns = window.fcoo = window.fcoo || {},
+        nsCountry = ns.country = ns.country || {},
         nsMap = ns.map = ns.map || {},
 
         nsNiord = window.Niord = window.Niord || {},
@@ -207,7 +208,7 @@
             onClick: function(/*id, selected, $button, map, owner*/){
                 var domain = mapLayer.options.domain.replace(' ', '-'); //Minor bug: if domain = "fa fe" it must be "fa-fe" :-(
                 nsNiord.messages.forceFilterDomain = domain;
-                
+
                 nsNiord.messages.asModal.apply(nsNiord.messages, arguments);
             }
         },{
@@ -230,7 +231,7 @@
                 backgroundWMS: options.backgroundWMS,
                 colorInfo    : options.colorInfo,
                 minZoom      : 5,
-                messages     : nsNiord.messages                    
+                messages     : nsNiord.messages
             },
             paneId          : 'NAVIGATION_NIORD',
             createPane      : true,
@@ -313,14 +314,14 @@
         menuList.push({
             buttonPaddingLeft : true,
             buttonPaddingRight: true,
-                
+
             type      : 'buttons',
             buttonList: [{
                 icon   : 'fa-th-list',
                 text   : {da:'Vis alle', en:'Show all'},
                 class  :'min-width-5em',
                 onClick: function(){
-                    loadMess( (mess) => mess.asModal() );                    
+                    loadMess( (mess) => mess.asModal() );
                 }
             },{
                 icon   : nsNiordOptions.partIcon.PUBLICATION,
@@ -332,6 +333,18 @@
                 }
             }]
         });
+
+        //Add "Other countries"
+        let other_menuItem = nsCountry.addMenuLinkList({
+                subDir  : 'navigation',
+                fileName: 'country_list_nm_nw.json'
+                },{
+                inclFavoriteLinkIcon: true,
+                favoritePrefix      : {da:'EfS & NavAdv -', en:'NtM & NavWarn -'}
+            });
+
+
+        menuList.push(other_menuItem);
 
         addMenu(menuList);
     };

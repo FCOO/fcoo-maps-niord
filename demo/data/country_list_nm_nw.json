@@ -1,0 +1,40 @@
+{
+    "description": "Links to national overview of Noties to Navigationn and Navigation Warnings",
+    "links": {
+        "se": {
+            "se": "https://www.sjofartsverket.se/sv/tjanster/ufs---underrattelser-for-sjofarande/",
+            "en": "https://www.sjofartsverket.se/en/services/ntm---notices-to-mariners/"
+        },
+        "no": {
+            "no": "",
+            "en": ""
+        },
+        "fi": "",
+        "is": {
+            "is": "",
+            "en": ""
+        },
+        "gb": "",
+        "de": {
+            "de": "",
+            "en": ""
+        },
+        "pl": {
+            "pl": "",
+            "en": ""
+        },
+        "lv": {
+            "lv": "",
+            "en": ""
+        },
+        "ee": {
+            "ee": "",
+            "en": ""
+        },            
+        "ca": {
+            "en": "",
+            "fr": ""
+        },
+        "us": ""
+    }
+}

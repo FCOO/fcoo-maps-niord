@@ -13097,7 +13097,7 @@ else {
 }(jQuery, this, document));
 ;
 /*!
-  * Bootstrap v5.3.5 (https://getbootstrap.com/)
+  * Bootstrap v5.3.7 (https://getbootstrap.com/)
   * Copyright 2011-2025 The Bootstrap Authors (https://github.com/twbs/bootstrap/graphs/contributors)
   * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
   */
@@ -13745,7 +13745,7 @@ else {
    * Constants
    */
 
-  const VERSION = '5.3.5';
+  const VERSION = '5.3.7';
 
   /**
    * Class definition
@@ -13771,6 +13771,8 @@ else {
         this[propertyName] = null;
       }
     }
+
+    // Private
     _queueCallback(callback, element, isAnimated = true) {
       executeAfterTransition(callback, element, isAnimated);
     }
@@ -14702,11 +14704,11 @@ else {
       this._element.style[dimension] = '';
       this._queueCallback(complete, this._element, true);
     }
+
+    // Private
     _isShown(element = this._element) {
       return element.classList.contains(CLASS_NAME_SHOW$7);
     }
-
-    // Private
     _configAfterMerge(config) {
       config.toggle = Boolean(config.toggle); // Coerce string values
       config.parent = getElement(config.parent);
@@ -16786,6 +16788,9 @@ else {
       this._element.setAttribute('aria-expanded', 'false');
       Manipulator.removeDataAttribute(this._menu, 'popper');
       EventHandler.trigger(this._element, EVENT_HIDDEN$5, relatedTarget);
+
+      // Explicitly return focus to the trigger element
+      this._element.focus();
     }
     _getConfig(config) {
       config = super._getConfig(config);
@@ -17898,7 +17903,6 @@ else {
    *
    * Shout-out to Angular https://github.com/angular/angular/blob/15.2.8/packages/core/src/sanitization/url_sanitizer.ts#L38
    */
-  // eslint-disable-next-line unicorn/better-regex
   const SAFE_URL_PATTERN = /^(?!javascript:)(?:[a-z0-9+.-]+:|[^&:/?#]*(?:[/?#]|$))/i;
   const allowedAttribute = (attribute, allowedAttributeList) => {
     const attributeName = attribute.nodeName.toLowerCase();
@@ -18442,6 +18446,7 @@ else {
         if (trigger === 'click') {
           EventHandler.on(this._element, this.constructor.eventName(EVENT_CLICK$1), this._config.selector, event => {
             const context = this._initializeOnDelegatedTarget(event);
+            context._activeTrigger[TRIGGER_CLICK] = !(context._isShown() && context._activeTrigger[TRIGGER_CLICK]);
             context.toggle();
           });
         } else if (trigger !== TRIGGER_MANUAL) {
@@ -19307,7 +19312,6 @@ else {
     }
 
     // Private
-
     _maybeScheduleHide() {
       if (!this._config.autohide) {
         return;
@@ -55268,6 +55272,9 @@ module.exports = Yaml;
                     result
                         .then( function(response) { return response.text(); })
                         .then( parseXML );
+
+                if (options.asJSON)
+                    result = result.then( function(xml){ return window.xmlToJSON(xml); });
                 break;
         }
 
@@ -55331,6 +55338,186 @@ module.exports = Yaml;
     };
 
 }(jQuery, this, Promise, document));
+
+
+;
+/****************************************************************************
+This work is licensed under Creative Commons GNU LGPL License.
+
+License: http://creativecommons.org/licenses/LGPL/2.1/
+Version: 0.9
+Author:  Stefan Goessner/2006
+Web:     http://goessner.net/
+****************************************************************************/
+
+(function (window /*, document, undefined*/) {
+    "use strict";
+
+function xml2json(xml, tab) {
+   var X = {
+      toObj: function(xml) {
+         var o = {}, n;
+         if (xml.nodeType==1) {   // element node ..
+            if (xml.attributes.length)   // element with attributes  ..
+               for (var i=0; i<xml.attributes.length; i++)
+                  o["@"+xml.attributes[i].nodeName] = (xml.attributes[i].nodeValue||"").toString();
+            if (xml.firstChild) { // element has child nodes ..
+               var textChild=0, cdataChild=0, hasElementChild=false;
+               for (n=xml.firstChild; n; n=n.nextSibling) {
+                  if (n.nodeType==1) hasElementChild = true;
+                  else if (n.nodeType==3 && n.nodeValue.match(/[^ \f\n\r\t\v]/)) textChild++; // non-whitespace text
+                  else if (n.nodeType==4) cdataChild++; // cdata section node
+               }
+               if (hasElementChild) {
+                  if (textChild < 2 && cdataChild < 2) { // structured element with evtl. a single text or/and cdata node ..
+                     X.removeWhite(xml);
+                     for (n=xml.firstChild; n; n=n.nextSibling) {
+                        if (n.nodeType == 3)  // text node
+                           o["#text"] = X.escape(n.nodeValue);
+                        else if (n.nodeType == 4)  // cdata node
+                           o["#cdata"] = X.escape(n.nodeValue);
+                        else if (o[n.nodeName]) {  // multiple occurence of element ..
+                           if (o[n.nodeName] instanceof Array)
+                              o[n.nodeName][o[n.nodeName].length] = X.toObj(n);
+                           else
+                              o[n.nodeName] = [o[n.nodeName], X.toObj(n)];
+                        }
+                        else  // first occurence of element..
+                           o[n.nodeName] = X.toObj(n);
+                     }
+                  }
+                  else { // mixed content
+                     if (!xml.attributes.length)
+                        o = X.escape(X.innerXml(xml));
+                     else
+                        o["#text"] = X.escape(X.innerXml(xml));
+                  }
+               }
+               else if (textChild) { // pure text
+                  if (!xml.attributes.length)
+                     o = X.escape(X.innerXml(xml));
+                  else
+                     o["#text"] = X.escape(X.innerXml(xml));
+               }
+               else if (cdataChild) { // cdata
+                  if (cdataChild > 1)
+                     o = X.escape(X.innerXml(xml));
+                  else
+                     for (n=xml.firstChild; n; n=n.nextSibling)
+                        o["#cdata"] = X.escape(n.nodeValue);
+               }
+            }
+            if (!xml.attributes.length && !xml.firstChild) o = null;
+         }
+         else if (xml.nodeType==9) { // document.node
+            o = X.toObj(xml.documentElement);
+         }
+         else
+            alert("unhandled node type: " + xml.nodeType);
+         return o;
+      },
+      toJson: function(o, name, ind) {
+         var json = name ? ("\""+name+"\"") : "";
+         if (o instanceof Array) {
+            for (var i=0,n=o.length; i<n; i++)
+               o[i] = X.toJson(o[i], "", ind+"\t");
+            json += (name?":[":"[") + (o.length > 1 ? ("\n"+ind+"\t"+o.join(",\n"+ind+"\t")+"\n"+ind) : o.join("")) + "]";
+         }
+         else if (o == null)
+            json += (name&&":") + "null";
+         else if (typeof(o) == "object") {
+            var arr = [];
+            for (var m in o)
+               arr[arr.length] = X.toJson(o[m], m, ind+"\t");
+            json += (name?":{":"{") + (arr.length > 1 ? ("\n"+ind+"\t"+arr.join(",\n"+ind+"\t")+"\n"+ind) : arr.join("")) + "}";
+         }
+         else if (typeof(o) == "string")
+            json += (name&&":") + "\"" + o.toString() + "\"";
+         else
+            json += (name&&":") + o.toString();
+         return json;
+      },
+      innerXml: function(node) {
+         var s = "";
+         if ("innerHTML" in node)
+            s = node.innerHTML;
+         else {
+            var asXml = function(n) {
+               var s = "";
+               if (n.nodeType == 1) {
+                  s += "<" + n.nodeName;
+                  for (var i=0; i<n.attributes.length;i++)
+                     s += " " + n.attributes[i].nodeName + "=\"" + (n.attributes[i].nodeValue||"").toString() + "\"";
+                  if (n.firstChild) {
+                     s += ">";
+                     for (var c=n.firstChild; c; c=c.nextSibling)
+                        s += asXml(c);
+                     s += "</"+n.nodeName+">";
+                  }
+                  else
+                     s += "/>";
+               }
+               else if (n.nodeType == 3)
+                  s += n.nodeValue;
+               else if (n.nodeType == 4)
+                  s += "<![CDATA[" + n.nodeValue + "]]>";
+               return s;
+            };
+            for (var c=node.firstChild; c; c=c.nextSibling)
+               s += asXml(c);
+         }
+         return s;
+      },
+      escape: function(txt) {
+         return txt.replace(/[\\]/g, "\\\\")
+                   .replace(/["]/g, '\\"')
+                   .replace(/[\n]/g, '\\n')
+                   .replace(/[\r]/g, '\\r');
+      },
+      removeWhite: function(e) {
+         e.normalize();
+         for (var n = e.firstChild; n; ) {
+            if (n.nodeType == 3) {  // text node
+               if (!n.nodeValue.match(/[^ \f\n\r\t\v]/)) { // pure whitespace text node
+                  var nxt = n.nextSibling;
+                  e.removeChild(n);
+                  n = nxt;
+               }
+               else
+                  n = n.nextSibling;
+            }
+            else if (n.nodeType == 1) {  // element node
+               X.removeWhite(n);
+               n = n.nextSibling;
+            }
+            else                      // any other node
+               n = n.nextSibling;
+         }
+         return e;
+      }
+   };
+   if (xml.nodeType == 9) // document node
+      xml = xml.documentElement;
+   var json = X.toJson(X.toObj(X.removeWhite(xml)), xml.nodeName, "\t");
+   return "{\n" + tab + (tab ? json.replace(/\t/g, tab) : json.replace(/\t|\n/g, "")) + "\n}";
+}
+
+
+window.xmlToJSON = function(xml) {
+    let jsonStr = xml2json(xml, ''),
+        json    = null;
+
+    try {
+        json = JSON.parse(jsonStr);
+    }
+    catch (error){
+        json = null;
+    }
+    return json;
+};
+
+}(this, document));
+
 
 
 ;
@@ -55918,12 +56105,11 @@ module.exports = Yaml;
   }
 
   /*!
-   * GSAP 3.12.7
+   * GSAP 3.13.0
    * https://gsap.com
    *
    * @license Copyright 2008-2025, GreenSock. All rights reserved.
-   * Subject to the terms at https://gsap.com/standard-license or for
-   * Club GSAP members, the agreement issued with that membership.
+   * Subject to the terms at https://gsap.com/standard-license
    * @author: Jack Doyle, jack@greensock.com
   */
   var _config = {
@@ -56091,9 +56277,12 @@ module.exports = Yaml;
       tween && tween._lazy && (tween.render(tween._lazy[0], tween._lazy[1], true)._lazy = 0);
     }
   },
+      _isRevertWorthy = function _isRevertWorthy(animation) {
+    return !!(animation._initted || animation._startAt || animation.add);
+  },
       _lazySafeRender = function _lazySafeRender(animation, time, suppressEvents, force) {
     _lazyTweens.length && !_reverting && _lazyRender();
-    animation.render(time, suppressEvents, force || _reverting && time < 0 && (animation._initted || animation._startAt));
+    animation.render(time, suppressEvents, force || !!(_reverting && time < 0 && _isRevertWorthy(animation)));
     _lazyTweens.length && !_reverting && _lazyRender();
   },
       _numericIfPossible = function _numericIfPossible(value) {
@@ -57551,7 +57740,7 @@ module.exports = Yaml;
       var tTime = this.parent && this._ts ? _parentToChildTotalTime(this.parent._time, this) : this._tTime;
       this._rts = +value || 0;
       this._ts = this._ps || value === -_tinyNum ? 0 : this._rts;
-      this.totalTime(_clamp(-Math.abs(this._delay), this._tDur, tTime), suppressEvents !== false);
+      this.totalTime(_clamp(-Math.abs(this._delay), this.totalDuration(), tTime), suppressEvents !== false);
 
       _setEnd(this);
 
@@ -57608,7 +57797,7 @@ module.exports = Yaml;
       var prevIsReverting = _reverting;
       _reverting = config;
 
-      if (this._initted || this._startAt) {
+      if (_isRevertWorthy(this)) {
         this.timeline && this.timeline.revert(config);
         this.totalTime(-0.01, config.suppressEvents);
       }
@@ -57978,7 +58167,7 @@ module.exports = Yaml;
           prevTime = 0;
         }
 
-        if (!prevTime && time && !suppressEvents && !iteration) {
+        if (!prevTime && tTime && !suppressEvents && !prevIteration) {
           _callback(this, "onStart");
 
           if (this._tTime !== tTime) {
@@ -58020,7 +58209,7 @@ module.exports = Yaml;
                 return this.render(totalTime, suppressEvents, force);
               }
 
-              child.render(child._ts > 0 ? (adjustedTime - child._start) * child._ts : (child._dirty ? child.totalDuration() : child._tDur) + (adjustedTime - child._start) * child._ts, suppressEvents, force || _reverting && (child._initted || child._startAt));
+              child.render(child._ts > 0 ? (adjustedTime - child._start) * child._ts : (child._dirty ? child.totalDuration() : child._tDur) + (adjustedTime - child._start) * child._ts, suppressEvents, force || _reverting && _isRevertWorthy(child));
 
               if (time !== this._time || !this._ts && !prevPaused) {
                 pauseTween = 0;
@@ -59099,7 +59288,7 @@ module.exports = Yaml;
           this.ratio = ratio = 1 - ratio;
         }
 
-        if (time && !prevTime && !suppressEvents && !iteration) {
+        if (!prevTime && tTime && !suppressEvents && !prevIteration) {
           _callback(this, "onStart");
 
           if (this._tTime !== tTime) {
@@ -59983,6 +60172,7 @@ module.exports = Yaml;
       _buildModifierPlugin = function _buildModifierPlugin(name, modifier) {
     return {
       name: name,
+      headless: 1,
       rawVars: 1,
       init: function init(target, vars, tween) {
         tween._onInit = function (tween) {
@@ -60039,6 +60229,7 @@ module.exports = Yaml;
     }
   }, {
     name: "endArray",
+    headless: 1,
     init: function init(target, value) {
       var i = value.length;
 
@@ -60047,7 +60238,7 @@ module.exports = Yaml;
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.12.7";
+  Tween.version = Timeline.version = gsap.version = "3.13.0";
   _coreReady = 1;
   _windowExists() && _wake();
   var Power0 = _easeMap.Power0,
@@ -60492,6 +60683,10 @@ module.exports = Yaml;
     pt.e = end;
     start += "";
     end += "";
+
+    if (end.substring(0, 6) === "var(--") {
+      end = _getComputedProperty(target, end.substring(4, end.indexOf(")")));
+    }
 
     if (end === "auto") {
       startValue = target.style[prop];
@@ -61347,6 +61542,11 @@ module.exports = Yaml;
 
           if (isTransformRelated) {
             this.styles.save(p);
+
+            if (type === "string" && endValue.substring(0, 6) === "var(--") {
+              endValue = _getComputedProperty(target, endValue.substring(4, endValue.indexOf(")")));
+              endNum = parseFloat(endValue);
+            }
 
             if (!transformPropTween) {
               cache = target._gsap;
@@ -84192,6 +84392,10 @@ module.exports = g;
             if (options.center)
                 $parent.addClass('justify-content-center text-center');
 
+            if (options.middle || options.verticalAlignMiddle)
+                $parent.addClass('align-items-center');
+
+
             $parent._bsAppendContent( options.append || options.after, options.contentContext, null, options  );
 
             return this;
@@ -84440,12 +84644,13 @@ module.exports = g;
     $.fn.bsAccordionStatus = function(){
         function getStatus($elem){
             var result = [];
-            $elem.children('.card').each( function(index, elem){
+            $elem.children('.accordion-item').each( function(index, elem){
                 var $elem = $(elem);
-                result[index] = $elem.hasClass('show') ? getStatus($elem.find('> .collapse > .card-block > .accordion')) : false;
+                result[index] = $elem.hasClass('show') ? getStatus($elem.find('> .collapse > .accordion-body > .accordion')) : false;
             });
             return result.length ? result : true;
         }
+
         return getStatus(this);
     };
 
@@ -87503,6 +87708,7 @@ jquery-bootstrap-modal-promise.js
         innerHeight     : The fixed height of the content
         innerMaxHeight  : The fixed max-height of the content
 
+        fitWidth
         flexWidth
         extraWidth
         megaWidth
@@ -87639,6 +87845,7 @@ jquery-bootstrap-modal-promise.js
     3: fixed height. options.height
 
     The width of a modal is by default 300px.
+    options.fitWidth  : If true the width of the modal is set by the with of the content
     options.flexWidth : If true the width of the modal will adjust to the width of the browser up to 500px
     options.extraWidth: Only when flexWidth is set: If true the width of the modal will adjust to the width of the browser up to 800px
     options.megaWidth : Only when flexWidth is set: If true the width of the modal will adjust to the width of the browser up to 1200px
@@ -87657,6 +87864,7 @@ jquery-bootstrap-modal-promise.js
 
     function getWidthFromOptions( options ){
         return {
+            fitWidth            : !!options.fitWidth,
             flexWidth           : !!options.flexWidth,
             extraWidth          : !!options.extraWidth,
             megaWidth           : !!options.megaWidth,
@@ -87755,6 +87963,10 @@ jquery-bootstrap-modal-promise.js
 
         //Remove all noty added on the modal and move down global backdrop
         $._bsNotyRemoveLayer();
+
+        //Call onHide
+        if (this.onHide)
+            this.onHide(this);
 
         //Remove the modal from DOM
         if (this.removeOnClose)
@@ -87906,8 +88118,8 @@ jquery-bootstrap-modal-promise.js
                     updateElement(containers.$footer,       contentOptions.footer,       '_bsAddHtml' );
                 }
             }, this);
-            
-            
+
+
             return this;
         },
 
@@ -88136,7 +88348,8 @@ jquery-bootstrap-modal-promise.js
 
         function useNormalWidth(options = {}){
             return (options.width == true) ||
-                    (   (options.flexWidth == undefined) &&
+                    (   (options.fitWidth == undefined) &&
+                        (options.flexWidth == undefined) &&
                         (options.extraWidth == undefined) &&
                         (options.megaWidth == undefined) &&
                         (options.maxWidth == undefined) &&
@@ -88470,6 +88683,7 @@ jquery-bootstrap-modal-promise.js
 
         //Set width
         $modalDialog
+            .toggleClass('modal-fit-width'              , cssWidth.fitWidth             )
             .toggleClass('modal-flex-width'             , cssWidth.flexWidth            )
             .toggleClass('modal-extra-width'            , cssWidth.extraWidth           )
             .toggleClass('modal-mega-width'             , cssWidth.megaWidth            )
@@ -88483,7 +88697,7 @@ jquery-bootstrap-modal-promise.js
         if (this.bsModal.isFullScreenMode){
             this._bsModalFullScreenOff();
             this._bsModalFullScreenOn();
-        }            
+        }
 
         //Call onChange (if any)
         if (bsModal.onChange)
@@ -88724,7 +88938,7 @@ jquery-bootstrap-modal-promise.js
         adjustFullScreenOptions(options);
         adjustFullScreenOptions(options.minimized, options);
         adjustFullScreenOptions(options.extended, options);
-        
+
         //Check $.MODAL_NO_VERTICAL_MARGIN
         if ($.MODAL_NO_VERTICAL_MARGIN){
             options.relativeHeightOffset = 0;
@@ -88797,6 +89011,8 @@ jquery-bootstrap-modal-promise.js
 
         $result.onShow = options.onShow;
         $result.onClose = options.onClose;
+        $result.onHide = options.onHide;
+
 
         //Create as modal and adds methods - only allow close by esc for non-static modal (typical a non-form)
         new bootstrap.Modal($result, {
@@ -88838,7 +89054,7 @@ jquery-bootstrap-modal-promise.js
         //Save some options in bsModal
         ['noReopenFullScreen'].forEach( id => {
             $result.bsModal[id] = options[id];
-        }); 
+        });
 
         return $result;
     };
@@ -109224,7 +109440,7 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
     //clone( elem ) return a cloned copy of elem
     function clone(elem){
         var result;
-        if ($.isArray(elem)){
+        if (Array.isArray(elem)){
             result = [];
             $.each(elem, function(index, subElem){
                 result.push( clone(subElem) );
@@ -109285,7 +109501,7 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
         nextLiId = 0;
 
     $.BsMmenuItem = function(options, parent, owner){
-        var _this = this;
+
         owner = owner || this;
         this.options = options;
 
@@ -109317,6 +109533,12 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
         this.parent = parent;
         this.menu = parent.menu;
 
+        //Use forced events if given
+        if (options.onChange && this.menu.options.forceOnChange)
+            options.onChange = this.menu.options.forceOnChange;
+        if (options.onClick && this.menu.options.forceOnClick)
+            options.onClick = this.menu.options.forceOnClick;
+
         //Using global events (if any) if non is given
         if (!options.onChange && !options.onClick){
             options.onChange = this.menu.options.onChange || null;
@@ -109332,10 +109554,13 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
                 this.state = 'semi';
         }
 
+        options.getState = options.getState || this.menu.options.getState || null;
+
         //Set element ids
         nextLiId++;
-        this.liId = 'bsmm_li_'+nextLiId;
-        this.ulId = 'bsmm_ul_'+nextLiId;
+        this.liId       = 'bsmm_li_'+nextLiId;
+        this.checkboxId = 'bsmm_cb_'+nextLiId;
+        this.ulId       = 'bsmm_ul_'+nextLiId;
 
         //Create the DOM-element
         this.createLi(owner);
@@ -109348,9 +109573,8 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
         var list = this.options.list || this.options.items || this.options.itemList || [];
         if (list.length)
             this._createUl();
-        $.each(list, function(index, opt){
-            _this.append($.bsMmenuItem(opt, _this));
-        });
+
+        list.forEach( opt => this.append($.bsMmenuItem(opt, this)), this );
     };
 
     $.bsMmenuItem = function(options, parent, owner){
@@ -109391,6 +109615,8 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
                         .i18n(this.options.link, 'href')
                         .prop('target', '_blank');
 
+                if (this.options.simpleFullWidth)
+                    this.$content.addClass('simple-full-width');
 
                 var originalContent = this.options.content || this.options,
                     adjustIcon = this.menu.options.adjustIcon;
@@ -109398,11 +109624,16 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
                 if (originalContent && originalContent.icon && adjustIcon)
                     originalContent.icon = adjustIcon(originalContent.icon);
 
+                let onClick = owner._onClick.bind(owner);
+
                 content = clone(originalContent);
-                content = $.isArray(content) ? content : [content];
+                content = Array.isArray(content) ? content : [content];
 
                 //If first content-item is the text => make it full-width inside a div. Adjust the icon if menu.options.adjustIcon = function(icon) is given
                 var firstContent = content[0];
+
+                if (firstContent.onClick)
+                    firstContent.onClick = onClick;
 
                 if ( $.isPlainObject(firstContent) && (!firstContent.type || (firstContent.type == 'text')) )
                     content[0] = $('<div/>')._bsAddHtml(firstContent);
@@ -109419,13 +109650,13 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
                 }
                 else {
                     this.checkbox = $.bsCheckbox({
-                        id          : this.id,
+                        id          : this.checkboxId,
                         type        : this.type,
                         multiLines  : true,
                         icon        : this.options.icon,
                         text        : this.options.text,
                         content     : content,
-                        onClick     : $.proxy(owner._onClick, owner)
+                        onClick     : onClick
                     })
                     .appendTo( this.$content );
 
@@ -109453,7 +109684,7 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
                                 noBorder    : true,
                                 class       :'flex-shrink-0 mm-favorite-icons',
                                 selected    : inFavorites,
-                                onChange    : $.proxy(this._toggleFavorite, this)
+                                onChange    : this._toggleFavorite.bind(this)
                             }).appendTo(this.$outer);
 
                         this.$outer.addClass('pe-0');
@@ -109472,7 +109703,7 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
                             square      : true,
                             noBorder    : true,
                             class       :'flex-shrink-0 mm-favorite-icons',
-                            onClick     : $.proxy(owner._toggleFavorite, owner)
+                            onClick     : owner._toggleFavorite.bind(owner)
                         }).appendTo(this.$outer);
                         this.$outer.addClass('pe-0');
                     }
@@ -109490,11 +109721,11 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
             if (this.$favoriteButton || this.options.removeFavoriteButton || this.buttonPaddingRight)
                 paddingClass = paddingClass + ' padding-right';
 
-            if (buttonList){
+            if (buttonList && !this.menu.options.noButtons){
                 //Buttons added inside button-bar. If button-options have first: true => new 'line' = new bsButtonGroup
                 var currentList = [];
 
-                buttonList.forEach( function(buttonOptions){
+                buttonList.forEach( buttonOptions => {
                     if (buttonOptions.isFirstButton && currentList.length){
                         groupList.push( currentList );
                         currentList = [];
@@ -109509,6 +109740,7 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
                 });
                 if (currentList.length)
                     groupList.push( currentList );
+
 
                 groupList.forEach( function( list ){
                     $.bsButtonBar({
@@ -109692,7 +109924,6 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
         Insert this.$li in DOM
         ***********************************/
         _updateElement: function(){
-
             this.parent._createUl();
 
             if (this.$li){
@@ -109710,7 +109941,6 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
                     this._getApi().initPanel( this.menu.panel );
                 }
             }
-
             this.menu._updateFavorites();
 
             return this;
@@ -109781,20 +110011,104 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
             this.menu._updateFavorites();
         },
 
+
+        /***********************************
+        _getChildIndex
+        Get the index of childItem
+        ***********************************/
+        _getChildIndex: function( childItem ){
+            let index = 0,
+                nextItem = this.first;
+            while (nextItem){
+                if (nextItem === childItem)
+                    return index;
+                else {
+                    nextItem = nextItem.next;
+                    index++;
+                }
+            }
+            return -1;
+        },
+
+        /***********************************
+        _getPlacement
+        Return a array with the index of this in it parents for this and all is parent elements
+        ***********************************/
+        _getPlacement: function(){
+            let getChildIndex = function( childItem, placement = [] ){
+                let parent = childItem.parent;
+                if (parent){
+                    let index = 0,
+                        nextItem = parent.last;
+                    while (nextItem){
+                        if (nextItem === childItem){
+                            placement.push(index);
+                            return getChildIndex( parent, placement );
+                        }
+                        else {
+                            nextItem = nextItem.prev;
+                            index++;
+                        }
+                    }
+                }
+                return placement;
+            };
+
+            return getChildIndex( this );
+        },
+
+
+        /***********************************
+        getSiblingItem( menu )
+        Returns the equal item in a cloned or original menu
+        ***********************************/
+        getSiblingItem: function( menu ){
+            return menu._getItemByPlacment( this._getPlacement() );
+        },
+
         /***********************************
         open
         ***********************************/
         open: function(closeAllOther){
             if (closeAllOther)
                 this.menu.closeAll();
+
             if (this.$ul)
                 this._getApi().openPanel(this.$ul.get(0));
+
+            //For unknown reasons this is also needed.....
+            if (this.$li && this.$ul){
+                this.$li.addClass('mm-listitem_opened');
+                this.$ul.parent().removeClass('mm-hidden');
+            }
+
         },
 
+        /***********************************
+        close
+        ***********************************/
+        close: function(){
+            if (this.$ul)
+                this._getApi().closePanel(this.$ul.get(0));
+
+            //For unknown reasons this is also needed.....
+            if (this.$li && this.$ul){
+                this.$li.removeClass('mm-listitem_opened');
+                this.$ul.parent().addClass('mm-hidden');
+            }
+        },
         /***********************************
         _onClick
         ***********************************/
         _onClick: function(/*id, state*/){
+            //If the menu is a full clone => use the original menu to handle events
+            if (this.menu.cloneOf && this.menu.options.isFullClone){
+                let siblingItem = this.getSiblingItem( this.menu.cloneOf );
+                if (siblingItem)
+                    siblingItem._onClick.bind(siblingItem).apply(arguments);
+                return;
+            }
+
             //There are two ways to change the state:
             //options.onChange => simple true/false state
             //options.onClick(id, state, item) => onClick will do all setting
@@ -109805,7 +110119,6 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
             else
                 if (this.options.onClick)
                     this.options.onClick(this.id, this.state, this);
-
         },
 
         /***********************************
@@ -109840,15 +110153,27 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
         setState
         ***********************************/
         setState: function(state, callOnChange){
-            this.state = state;
+            this.state = this.options.getState ? this.options.getState(this, state) : state;
             if (this.checkbox)
-                this.checkbox.cbxSetState(state);
+                this.checkbox.cbxSetState(this.state);
 
             if (this.favoriteCheckbox)
-                this.favoriteCheckbox.cbxSetState(state);
+                this.favoriteCheckbox.cbxSetState(this.state);
 
             if (callOnChange && this.options.onChange)
                 this.options.onChange(this.id, this.state, this);
+
+            //If the menu has any cloned menus => update the items
+            if (this.menu.clones){
+                let state = this.state;
+                $.each(this.menu.clones, function(id, menu){
+                    let menuItem = this.getSiblingItem( menu );
+                    if (menuItem && menuItem.setState)
+                        menuItem.setState( state, false );
+                }.bind(this));
+            }
+
+
 
             return this;
         },
@@ -109879,7 +110204,7 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
             //(*)slidingSubmenus: false,   //Whether or not submenus should come sliding in from the right.
                                            //If false, submenus expand below their parent. To expand a single submenu below its parent item, add the class "Vertical" to it.
 
-            offCanvas      : true,   //https://mmenujs.com/docs/core/off-canvas.html
+            offCanvas      : false, //https://mmenujs.com/docs/core/off-canvas.html
 
             preventDefault : true,
             extensions: [
@@ -109905,7 +110230,8 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
 
             //Events
             onOpenOrClose: null, //function(menuItem, open, menu)
-
+            forceOnChange: null, //function(menuItem, state, menu) Overwrites any onChange given. Normally used in cloned menues
+            forceOnClick : null, //function(menuItem, state, menu) Overwrites any onClick given. Normally used in cloned menues
             /*
             navbar - see https://mmenujs.com/docs/addons/navbars.html
             */
@@ -109936,6 +110262,7 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
         }
     };
 
+
     /************************************************
     BsMmenu
     options = {
@@ -109946,6 +110273,8 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
         }
         inclBar    : BOOLEAN, if true a bar top-right with buttons from items with options.addToBar = true and favorites (optional) and close-all (if barCloseAll=true) and reset (if options.reset is given)
         barCloseAll: BOOLEAN, if true a top-bar button is added that closes all open submenus
+
+        noButtons   : BOOLEAN, if true no buttons are added to menu-items
 
         adjustIcon  : function(icon): retur icon (optional). Adjust the icon of each menu-items
 
@@ -109960,8 +110289,6 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
 
     ************************************************/
     $.BsMmenu = function(options = {}, mmenuOptions = {}, configuration = {}){
-        var _this = this;
-
         this.prev = null;
         this.next = null;
         this.first = null;
@@ -109971,6 +110298,12 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
         this.removeFavoriteIcon = [[$.FONTAWESOME_PREFIX_STANDARD + ' fa-star fa-fw', $.FONTAWESOME_STANDARD + " fa-slash fa-fw"]];
 
         this.ulId = 'bsmm_ul_0';
+
+        this.options = options;
+
+        //Save mmenuOptions and configuration in options. Needed for clone
+        this.options.mmenuOptions = mmenuOptions;
+        this.options.configuration = configuration;
 
         //Setting and adjusting mmenuOptions = the options for Mmenu
         //Using sliding submenus and navbar with title if it is a touch device
@@ -109982,7 +110315,7 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
                     add   : !!window.bsIsTouch || !!options.title,
                     title : options.title || ' ',
                 },
-/* mangler
+/* @todo
                 backButton: {
                     // back button options
                 }
@@ -110034,23 +110367,23 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
         }
 
         //Create and add sub-items
-        var list = $.isArray(options) ? options : (options.list || options.items || options.itemList || []);
-        $.each(list, function(index, opt){
-           _this.append($.bsMmenuItem(opt, _this));
-        });
+        var list = Array.isArray(options) ? options : (options.list || options.items || options.itemList || []);
+        list.forEach( opt => this.append($.bsMmenuItem(opt, this)), this );
+
+        this.list = list;
 
     };
 
 
-    $.bsMmenu = function(options, mmenuOptions){
-        return new $.BsMmenu(options, mmenuOptions);
+    $.bsMmenu = function(options, mmenuOptions, configuration){
+        return new $.BsMmenu(options, mmenuOptions, configuration);
     };
 
     //bsMMenu as jQuery prototype
-    $.fn.bsMmenu = function(options, mmenuOptions){
+    $.fn.bsMmenu = function(options, mmenuOptions, configuration){
         return this.each(function() {
             if (!$.data(this, "bsMmenu"))
-                new $.BsMmenu(options, mmenuOptions);
+                new $.BsMmenu(options, mmenuOptions, configuration);
             $.data(this, "bsMmenu").create($(this));
         });
     };
@@ -110087,7 +110420,10 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
             this._createUl();
             this.$ul.appendTo($elem);
 
-            $elem.addClass( $._bsGetSizeClass({baseClass: 'mm-menu', useTouchSize: true}) );
+            $elem
+                .addClass( $._bsGetSizeClass({baseClass: 'mm-menu', useTouchSize: true}) )
+                .toggleClass('mm-menu-no-button', !!this.options.noButtons);
+
 
             if (this.options.inclBar){
                 buttonList = [];
@@ -110097,7 +110433,7 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
                         title: {da:'Luk alle', en:'Close all'},
                         square : true,
                         tagName: 'div',
-                        onClick: $.proxy(this.closeAll, this)}
+                        onClick: this.closeAll.bind(this)}
                     ).get(0) );
 
                 var item = this.first;
@@ -110109,7 +110445,7 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
                                 title   : item.options.text || null,
                                 square  : true,
                                 tagName : 'div',
-                                onClick : $.proxy(item.open, item, true)
+                                onClick : item.open.bind(item, true)
                             }).get(0)
                         );
                     item = item.next;
@@ -110122,7 +110458,8 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
                         //bottom: []ELEMENT
                     };
             }
-
+            else
+                this.mmenuOptions.iconbar = false;
 
             //Add button to reset all selected menu-items (if any)
             if (this.options.reset){
@@ -110144,7 +110481,7 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
                         title   : resetOptions.title,
                         square  : true,
                         tagName : 'div',
-                        onClick : $.proxy(this.reset, this)
+                        onClick : this.reset.bind(this)
                     }).get(0)
                 );
             }
@@ -110155,15 +110492,40 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
             this.panel = $elem.find('#'+this.ulId).get(0);
             this.api = this.mmenu.API;
 
-
-
             //Add event for open/close menus. Other events: 'closePanel:before', 'closePanel:after', 'openPanel:before', 'openPanel:after', 'setSelected:before', 'setSelected:after'
-            this.api.bind('openPanel:after',  this._onOpen.bind(this) );                
-            this.api.bind('closePanel:after', this._onClose.bind(this) );                
-            
+            this.api.bind('openPanel:after',  this._onOpen.bind(this) );
+            this.api.bind('closePanel:after', this._onClose.bind(this) );
+
             $elem.data('bsMmenu', this.mmenu);
 
+
+            this.setOpenAndClosedItems();
+
             return this;
+        },
+
+        /**********************************
+        setOpenAndClosedItems
+        Open/close items according to the setting in this.openItemIdList
+        **********************************/
+        setOpenAndClosedItems: function(){
+            this.openItemIdList = this.openItemIdList || {};
+
+            let save_openItemIdList = $.extend({}, this.openItemIdList);
+            $.each(this.openItemIdList, function(id, isOpen){
+                let item = this.getItem(id);
+                if (item && isOpen)
+                    item.open();
+            }.bind(this));
+
+            //Need to re-close other items
+            this.openItemIdList = save_openItemIdList;
+
+            this.visitAllItems( function(menuItem){
+                if (!this.openItemIdList || !this.openItemIdList[menuItem.id])
+                    menuItem.close();
+            }.bind(this));
+
         },
 
         /**********************************
@@ -110184,6 +110546,7 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
                 else
                     item = item.next;
             }
+
             return result;
         },
 
@@ -110192,6 +110555,48 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
         **********************************/
         getItem: function(id, findByLiId){
             return this._getItem(id, this, findByLiId);
+        },
+
+        /**********************************
+        _getItemByPlacment
+        **********************************/
+        _getItemByPlacment( placement ){
+            let getChildByIndex = function( parent, placement ){
+                if (!placement.length || !parent)
+                    return parent;
+
+                let nextIndex = placement.pop(),
+                    index = 0,
+                    nextItem = parent.last;
+                while (nextItem){
+                    if (index == nextIndex)
+                        return getChildByIndex( nextItem, placement );
+                    else {
+                        nextItem = nextItem.prev;
+                        index++;
+                    }
+                }
+                return null;
+            };
+
+            return getChildByIndex( this, placement );
+        },
+
+        /**********************************
+        visitAllItems
+        func = function(menuItem)
+        **********************************/
+        visitAllItems: function( func ){
+            function visitAll( menuItem ){
+                let nextChild = menuItem.first;
+                while (nextChild){
+                    func(nextChild);
+                    visitAll(nextChild);
+                    nextChild = nextChild.next;
+                }
+            }
+            visitAll( this );
+
         },
 
         /**********************************
@@ -110209,7 +110614,7 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
         **********************************/
         reset: function(){
             if (this.options.reset.promise)
-                this.options.reset.promise( $.proxy(this._reset_resolve, this) );
+                this.options.reset.promise( this._reset_resolve.bind(this) );
         },
 
         _reset_resolve: function( closeAll ){
@@ -110232,21 +110637,21 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
         _onClose: function(panel){ return this._onOpenOrClose(panel, false); },
 
         _onOpenOrClose( panel, isOpen=false){
-            let liId      = panel.parentElement ? $(panel.parentElement).attr('id') : null,
-                mmenuItem = liId ? this.getItem(liId, true) : null;
+            let liId     = panel.parentElement ? $(panel.parentElement).attr('id') : null,
+                menuItem = liId ? this.getItem(liId, true) : null;
 
-            if (mmenuItem){
+            if (menuItem){
                 //Update openItemIdList
                 this.openItemIdList = this.openItemIdList || {};
-                this.openItemIdList[mmenuItem.id] = isOpen;
+                this.openItemIdList[menuItem.id] = isOpen;
 
                 if (this.options.onOpenOrClose)
-                    this.options.onOpenOrClose(mmenuItem, isOpen, this);
+                    this.options.onOpenOrClose(menuItem, isOpen, this);
             }
 
-            return this;            
-        },            
-        
+            return this;
+        },
+
         /**********************************
         closeAll
         **********************************/
@@ -110313,7 +110718,198 @@ S.addons={offcanvas:function(){var e=this;if(this.opts.offCanvas){var t=function
 
                 });
             }
+        },
+
+        /**********************************
+        clone
+        Create a cloned version of the menu
+        ***********************************/
+        clone: function( options = {}, mmenuOptions = {}, configuration = {}  ){
+
+            options = $.extend({
+                inclFavorites: false,
+                noButtons    : true,
+                inclBar      : false,
+                reset        : false,
+                favorites    : false,
+                isFullClone  : true     //true => All items are an exact copy
+            }, options);
+
+            let c_options       = $.extend(true, {}, this.options,               options      ),
+                c_mmenuOptions  = $.extend(true, {}, this.options.mmenuOptions,  mmenuOptions ),
+                c_configuration = $.extend(true, {}, this.options.configuration, configuration);
+
+            let c_menu = $.bsMmenu(c_options, c_mmenuOptions, c_configuration);
+
+            this.nrOfClones = this.nrOfClones || 0;
+            this.clones = this.clones || {};
+
+            c_menu.cId = 'clone'+this.nrOfClones;
+            c_menu.cloneOf = this;
+            this.nrOfClones++;
+            this.clones[c_menu.cId] = c_menu;
+
+            //Copy the open/close state from the original menu
+            c_menu.openItemIdList = {};
+            $.each(this.openItemIdList, function(id, isOpen){
+                let origialItem = this.getItem(id),
+                    cloneItem = origialItem ? origialItem.getSiblingItem( c_menu ) : null;
+                if (cloneItem)
+                    c_menu.openItemIdList[cloneItem.id] = isOpen;
+            }.bind(this));
+
+            return c_menu;
+        },
+
+        /**********************************
+        destroy
+        Destroy the menu and clean up
+        ***********************************/
+        destroy: function(){
+            if (this.cloneOf)
+                delete this.cloneOf.clones[this.cId];
+            $(this.mmenu.node.menu).empty();
+        },
+
+        /**********************************
+        showInModal
+        Show the menu in a modal
+        ***********************************/
+        showInModal: function(modalOptions = {}, destroyOnClose){
+
+            let width = null;
+
+            //If the menu is a clone and modalOptions.sameWidthAsCloneOf = true => the modal inner-wisth gets the same as the original menu
+            if (this.cloneOf && modalOptions.sameWidthAsCloneOf && !modalOptions.width)
+                width = this.cloneOf.$ul.width();
+            else
+                width = modalOptions.width;
+
+            let offCanvas = this.mmenuOptions.offCanvas;
+            this.mmenuOptions.offCanvas = false;
+
+            if (destroyOnClose){
+                modalOptions.show   = false;
+                modalOptions.remove = true;
+            }
+
+            this.bsModal = $.bsModal(
+                $.extend( modalOptions, {
+                    scroll   : true,
+                    fitWidth : !!width,
+                    flexWidth: !width,
+
+                    content: function(modalOptions, $container){
+                        let $outerContent =
+                                $('<div></div>')
+                                    .addClass('mm-menu-modal-content')
+                                    .appendTo($container);
+
+                        if (modalOptions.minHeight)
+                            $outerContent.css('minHeight', modalOptions.minHeight);
+
+                        if (width)
+                            $outerContent.width(width);
+
+                        let $content = $('<div></div>')
+                                .appendTo($outerContent);
+
+                        this.create($content);
+                    }.bind(this, modalOptions),
+                })
+            );
+
+            this.mmenuOptions.offCanvas = offCanvas;
+
+            if (destroyOnClose)
+                //Destroy the cloned menu on close + show it!
+                this.bsModal
+                    .on('hidden.bs.modal', this.destroy.bind(this) )
+                    .show();
+        },
+
+        /**********************************
+        asSimpleMenu
+        Special method to return the menu as a new simple bsMenu
+        The returned menu do not only contain any pure text or buttons or checkbox/radio
+        Instead eaach menu-item is just a click-item calling onClick
+        Optional: include(menuItem) return true/false
+        Optional: adjust(menuItem) return menuItem adjusted (icon, text etc)
+        ***********************************/
+        asSimpleMenu: function(
+            onClick = (/*menuItem*/) => {/* Do sometning with item*/},
+            include = (  menuItem  ) => {return !!menuItem.onClick || !!menuItem.onChange;},
+            adjust  = (  menuItem  ) => {return menuItem; }){
+
+
+            let onClickSimple = function(id, state, menuItem){
+                onClick(menuItem);
+            };
+
+
+            let getIcon = function( opt ){
+                let icon = opt.icon;
+                if (icon && this.options.adjustIcon)
+                    icon = this.options.adjustIcon(icon);
+                return icon;
+            }.bind(this);
+
+
+            let getSimpleOptions = function( menuList = []){
+                let result = [];
+
+                menuList.forEach( menuItem => {
+                    menuItem = adjust(menuItem);
+
+                    let simpleOptions = null;
+                    let list = getSimpleOptions( menuItem.list);
+
+                    if (list.length)
+                        simpleOptions = {
+                            id  : menuItem.id,
+                            icon: getIcon(menuItem),
+                            text: menuItem.text,
+                            list: list
+                        };
+                    else
+                        //Menu-item has no children => Add it if it is included (default = has a onClick/onChange )
+                        if (include(menuItem))
+                            simpleOptions = {
+                                id      : menuItem.id,
+                                icon    : getIcon(menuItem),
+                                text    : menuItem.text || {da:'Mangler', en:'Missing'},
+                                onClick : onClickSimple,
+                                simpleFullWidth: true
+                            };
+
+                    if (simpleOptions)
+                        result.push( simpleOptions );
+                }, this);
+
+                return result;
+
+            }.bind(this);
+
+
+            let bsMenu = $.bsMmenu(
+                    {list: getSimpleOptions( this.list ) },
+                    this.options.mmenuOptions,
+                    this.options.configuration
+                );
+
+            //Copy the open/close state from the original menu
+            bsMenu.openItemIdList = {};
+            $.each(this.openItemIdList, function(id, isOpen){
+                let origialItem = this.getItem(id),
+                    cloneItem = origialItem ? origialItem.getSiblingItem( bsMenu ) : null;
+                if (cloneItem)
+                    bsMenu.openItemIdList[cloneItem.id] = isOpen;
+            }.bind(this));
+
+            return bsMenu;
+
         }
+
     };
 
     /******************************************
@@ -113416,7 +114012,7 @@ Methods to create standard FCC-web-applications
 
 
 ****************************************************************************/
-(function ($, moment, window/*, document, undefined*/) {
+(function ($, moment, window, document, undefined) {
     "use strict";
 
     var ns = window.fcoo = window.fcoo || {};
@@ -113434,14 +114030,27 @@ Methods to create standard FCC-web-applications
 
     createApplication(...) will
         1: "Load" (*) setup and proccess the options
-        2: "Load" standard setup/options for differnet parts of the application
-        3: "Load" content for left- and/or right-menu
+        2: "Load" standard setup/options for different parts of the application
+        3: "Load" content for left- and/or right-panel
         4: "Load" standard FCOO-menu
-        5: Create the main structure and the left and/or right menu
+        5: Create the main structure and the left and/or right panel
         6: "Load" options.other and options.metaData (if any)
         7: Load settings in fcoo.appSetting and globalSetting and call options.finally (if any)
 
     *) "Load" can be loading from a file or using given or default options
+
+
+    Regarding loading and creation of menu-structure in left or right panel (#3 and #4):
+    There are three way to set a menu structure (see fcoo-application-standard-menu.js):
+    1: Set a list = MENU_ITEM_LIST or {list: MENU_ITEM_LIST}
+    2: Set name of a file containing the menu-structure
+    3: Mark to use the default FCOO-menu
+
+    A menu-item can initial just be at id (STRING) and other code-packages can add functions to create the content of the menu-item
+    The application must provide a "owner-list" = {MENU_ID: function(options, addMenu)}, where addMenu = function to add new (sub-)menu-items
+
+
+
 
     ****************************************************************************/
 
@@ -113479,10 +114088,32 @@ Methods to create standard FCC-web-applications
     }
 
     /*************************************************************************
+    __FCOO_APPLICATION_ADJUT_OPTIONS
+    Convert options from previous version to current version
+    *************************************************************************/
+    ns.__FCOO_APPLICATION_ADJUT_OPTIONS = function(options){
+        ['leftMenu', 'leftMenuIcon', 'leftMenuButtons', 'keepLeftMenuButton', 'rightMenu', 'rightMenuIcon', 'keepRightMenuButton', 'rightMenuButtons', 'topMenu', 'bottomMenu'].forEach( id => {
+            let newId = id.replace('Menu', 'Panel');
+
+            if ((options[newId] === undefined) && (options[id] !== undefined)){
+                options[newId] =options[id];
+                delete options[id];
+            }
+        });
+    };
+
+
+    /*************************************************************************
     createApplication(
         options,
         create_main_content
-        menuOptions = {ownerList, finallyFunc, fileNameOrMenuOptions}
+        menuOptions = {
+            fileName             : FILENAME,
+            menuList or list     : MENU_ITEM_LIST
+            ownerList            : OWNER_LIST
+            finallyFunc          : FUNCTION,
+            fileNameOrMenuOptions: FILENAME or MENU_ITEM_LIST
+        }
         application_resolve_setup,
         nsForApplication = ns,
     }
@@ -113499,6 +114130,7 @@ Methods to create standard FCC-web-applications
         application_resolve_setup,
         nsForApplication = ns
     ){
+
         //Set namespace for the application
         nsApp = nsForApplication || nsApp;
 
@@ -113512,7 +114144,7 @@ Methods to create standard FCC-web-applications
         ns.viewport_no_scalable = true;
 
         //1: "Load" setup and proccess the options
-        nsApp.menuOptions = menuOptions;
+        nsApp.menuOptions = ns.adjustMenuOptions(menuOptions);
 
         var promiseOptions = ns.options2promiseOptions(options);
         if (promiseOptions.fileName)
@@ -113527,59 +114159,71 @@ Methods to create standard FCC-web-applications
     ******************************************************************/
     function resolve_setup(options){
 
+        //For backward compatibility a number of ids are converted
+        ns.__FCOO_APPLICATION_ADJUT_OPTIONS(options);
+
         //Set applicationHeader here because it is used in promise-error
         ns.applicationHeader = $._bsAdjustText( options.applicationName || options.applicationHeader || options.header || ns.defaultApplicationOptions.applicationName );
 
         //Adjust options - both in ns and nsApp
         ns.setupOptions = nsApp.setupOptions = options = setOptions(options, ns.defaultApplicationOptions);
 
-        //Set bottom-menu options
-        nsApp.setupOptions.bottomMenu = nsApp.setupOptions.bottomMenu || nsApp.BOTTOM_MENU;
+        //Set bottom-panel options
+        nsApp.setupOptions.bottomPanel = nsApp.setupOptions.bottomPanel || nsApp.BOTTOM_PANEL || nsApp.BOTTOM_MENU;
 
         //Adjust path: If path is file-name (in any form) => move it into default format
         ['help', 'messages', 'warning'].forEach(id => {
-            let topMenuPath = options.topMenu[id];
-            if (topMenuPath && window.intervals.isFileName(topMenuPath))
-                options.topMenu[id] = {url: ns.dataFilePath( topMenuPath )};
+            let topPanelPath = options.topPanel[id];
+            if (topPanelPath && window.intervals.isFileName(topPanelPath))
+                options.topPanel[id] = {url: ns.dataFilePath( topPanelPath )};
         });
 
         //Add helpId to modal for globalSetting (if any)
-        if (nsApp.setupOptions.topMenu && nsApp.setupOptions.topMenu.helpId && nsApp.setupOptions.topMenu.helpId.globalSetting){
+        if (nsApp.setupOptions.topPanel && nsApp.setupOptions.topPanel.helpId && nsApp.setupOptions.topPanel.helpId.globalSetting){
             var modalOptions = ns.globalSetting.options.modalOptions = ns.globalSetting.options.modalOptions || {};
-            modalOptions.helpId = nsApp.setupOptions.topMenu.helpId.globalSetting;
+            modalOptions.helpId = nsApp.setupOptions.topPanel.helpId.globalSetting;
             modalOptions.helpButton = true;
         }
 
         //Adjust and add options for load, save, and share button
         let addTo = ns.setupOptions.saveLoadShare || '', buttons;
         addTo = Array.isArray(addTo) ? addTo : addTo.split(' ');
+
+        //Convert "Menu" to "Panel"
+        addTo = addTo.join(' ').replace('Menu', 'Panel').split(' ');
+
+        ['leftPanel', 'rightPanel', 'topPanel'].forEach( id => {
+            if (options[id] === true)
+                options[id] = {};
+        });
+
         addTo.forEach( where => {
             switch (where.toUpperCase()){
-                case 'TOPMENU'  :
-                    options.topMenu = options.topMenu || {};
-                    options.topMenu.save  = options.topMenu.save  || true;
-                    options.topMenu.load  = options.topMenu.load  || true;
-                    options.topMenu.share = options.topMenu.share || true;
+                case 'TOPPANEL'  :
+                    options.topPanel.save  = options.topPanel.save  || true;
+                    options.topPanel.load  = options.topPanel.load  || true;
+                    options.topPanel.share = options.topPanel.share || true;
                     break;
 
-                case 'LEFTMENU' :
-                    options.leftMenu = options.leftMenu || {};
-                    buttons = options.leftMenu.buttons = options.leftMenu.buttons || {};
-                    buttons.save  = buttons.save  || true;
-                    buttons.load  = buttons.load  || true;
-                    buttons.share = buttons.share || true;
+                case 'LEFTPANEL' :
+                    if (options.leftPanel){
+                        buttons = options.leftPanel.buttons = options.leftPanel.buttons || {};
+                        buttons.save  = buttons.save  || true;
+                        buttons.load  = buttons.load  || true;
+                        buttons.share = buttons.share || true;
+                    }
                     break;
 
-                case 'RIGHTMENU':
-                    options.rightMenu = options.righttMenu || {};
-                    buttons = options.rightMenu.buttons = options.rightMenu.buttons || {};
-                    buttons.save  = buttons.save  || true;
-                    buttons.load  = buttons.load  || true;
-                    buttons.share = buttons.share || true;
+                case 'RIGHTPANEL':
+                    if (options.rightPanel){
+                        buttons = options.rightPanel.buttons = options.rightPanel.buttons || {};
+                        buttons.save  = buttons.save  || true;
+                        buttons.load  = buttons.load  || true;
+                        buttons.share = buttons.share || true;
+                    }
                     break;
             }
         });
-
 
         //Call the applications own resolve method (if any)
         if (appResolveSetup)
@@ -113591,60 +114235,77 @@ Methods to create standard FCC-web-applications
                 ns.promiseList.append( ns.options2promiseOptions(fileNameOrData, nsApp.standard[id]) );
         });
 
-        //3: "Load" content for left- and/or right-menu. If the menu isn't the standard-menu its content is loaded last to have the $-container ready
+        //3: "Load" content for left- and/or right-panel. If the panel is a menu or the standard-menu its content is loaded last to have the $-container ready
+        let menuOptions = $.extend({}, nsApp.menuOptions || {}, options.menuOptions || {});
+
         ['left', 'right'].forEach(prefix => {
-            var menuId = prefix+'Menu',
-                sideMenuOptions = options[menuId];
-            if (!sideMenuOptions) return;
+            var panelId = prefix+'Panel',
+                sidePanelOptions = options[panelId];
+            if (!sidePanelOptions) return;
 
-            if (sideMenuOptions.isStandardMenu){
-                //Set the options for mmenu
-                sideMenuOptions.menuOptions =
-                    $.extend({}, sideMenuOptions.bsMenuOptions || {}, options.standardMenuOptions || {}, {list: []});
+            //1: The panel contains a menu
+            if (sidePanelOptions.isStandardMenu || (menuOptions && sidePanelOptions.isMenu) || sidePanelOptions.menuOptions){
 
-                //Set ref to the menu with the standard menu
-                options.standardMenuId = prefix+'Menu';
+                //sidePanelOptions.menuOptions can just be a file-name with menu-items
+                if (sidePanelOptions.menuOptions && window.intervals.isFileName(sidePanelOptions.menuOptions))
+                    sidePanelOptions.menuOptions = {fileName: sidePanelOptions.menuOptions};
+
+                //Set the options for menu
+                menuOptions = sidePanelOptions.menuOptions =
+                    $.extend({},
+                        sidePanelOptions.isStandardMenu ? options.standardMenuOptions : {} || {},
+                        menuOptions || {},
+                        sidePanelOptions.menuOptions || {}
+                    );
+
+                //Set ref to the panel with the standard menu
+                options.menuPanelId = prefix+'Panel';
             }
             else
-                if (!sideMenuOptions.$menu){
-                    /*  sideMenuOptions contains:
+                //2: Content is given in $panel or $content
+                if (sidePanelOptions.$panel || sidePanelOptions.$content)
+                    sidePanelOptions.$panel = sidePanelOptions.$panel || sidePanelOptions.$content;
+                else {
+                    /*
+                    3: sidePanelOptions contains:
                           fileName: FILENAME, or
                           data    : JSON-OBJECT, or
                           content : A JSON-OBJECT with content as in fcoo/jquery-bootstrap, or
-                          create or resolve : function( data, $container ) - function to create the menus content in $container. Only if fileName or data is given
-
-                        Create the resolve-function */
-                    var resolve, menuResolve;
-                    if (sideMenuOptions.content)
+                          create or resolve : function( data, $container ) - function to create the content of the panel in $container. Only if fileName or data is given
+                        Create the resolve-function
+                    */
+                    var resolve, panelResolve;
+                    if (sidePanelOptions.content)
                         resolve = function( content ){
-                            nsApp.main[menuId].$menu._bsAddHtml( content );
+                            nsApp.main[panelId].$panel._bsAddHtml( content );
                         };
                     else {
-                        menuResolve = sideMenuOptions.resolve || sideMenuOptions.create;
-                        if (menuResolve)
+                        panelResolve = sidePanelOptions.resolve || sidePanelOptions.create;
+                        if (panelResolve)
                             resolve = function( data ){
-                                menuResolve( data, nsApp.main[menuId].$menu );
+                                panelResolve( data, nsApp.main[panelId].$panel );
                             };
                     }
 
-                    if (menuResolve)
+                    if (panelResolve)
                         ns.promiseList.appendLast({
-                            fileName: sideMenuOptions.fileName,
-                            data    : sideMenuOptions.data || sideMenuOptions.content,
+                            fileName: sidePanelOptions.fileName,
+                            data    : sidePanelOptions.data || sidePanelOptions.content,
                             resolve : resolve
                         });
                 }
         });
 
-        //4: "Load" standard FCOO-menu - when the menu is loaded
-        if (nsApp.menuOptions){
-            nsApp.menuOptions.appFinallyFunc = nsApp.menuOptions.finallyFunc;
-            nsApp.menuOptions.finallyFunc = standardMenuFinally;
 
+        //4: "Load" menu (standard or individuel) - when the menu is loaded
+        if (menuOptions){
+            nsApp.menuOptions = menuOptions;
+            nsApp.menuOptions.appFinallyFunc = nsApp.menuOptions.finallyFunc;
+            nsApp.menuOptions.finallyFunc = appMenuFinally;
             ns.createFCOOMenu(nsApp.menuOptions);
         }
 
-        //5: Create the main structure and the left and/or right menu. Is excecuded after the layer-menus and before lft/rigth menu creation
+        //5: Create the main structure and the left and/or right panel. Is excecuded after the layer-menus and before lft/right menu creation
         ns.promiseList.prependLast({
             data   : 'none',
             resolve: createMainStructure
@@ -113674,16 +114335,15 @@ Methods to create standard FCC-web-applications
     }
 
     /*************************************************************************
-    standardMenuFinally(menuList, menuOptions)
-    4: Append menu-items in menuList to the list with item for the standard-menu, and
+    appMenuFinally(menuList, menuOptions)
+    4:  Set loaded or created menu-items in menuList to the list with item for the panel holding the menu (if any), and
         call the users finally-method
     *************************************************************************/
-    function standardMenuFinally(menuList, menuOptions){
-        if (nsApp.setupOptions.standardMenuId){
-            let standardMenuOptions = nsApp.setupOptions[nsApp.setupOptions.standardMenuId].menuOptions;
-
-            if (standardMenuOptions && standardMenuOptions.list)
-                standardMenuOptions.list = standardMenuOptions.list.concat( menuList );
+    function appMenuFinally(menuList, menuOptions){
+        if (nsApp.setupOptions.menuPanelId){
+            let panelMenuOptions = nsApp.setupOptions[nsApp.setupOptions.menuPanelId].menuOptions;
+            if (panelMenuOptions)
+                panelMenuOptions.list = menuList;
         }
 
         if (menuOptions.appFinallyFunc)
@@ -113692,7 +114352,7 @@ Methods to create standard FCC-web-applications
 
     /*************************************************************************
     createMainStructure()
-    5: Create the main structure and the left and/or right menu
+    5: Create the main structure and the left and/or right panel
     *************************************************************************/
     function createMainStructure(){
         var setupOptions = nsApp.setupOptions;
@@ -113705,18 +114365,18 @@ Methods to create standard FCC-web-applications
             applicationHeader   : setupOptions.applicationHeader,
             header              : setupOptions.header,
 
-            //top-, left-, right-, and bottom-menus
-            topMenu             : setupOptions.topMenu,
+            //top-, left-, right-, and bottom-panels
+            topPanel             : setupOptions.topPanel,
 
-            leftMenu            : setupOptions.leftMenu,
-            leftMenuIcon        : setupOptions.leftMenuIcon,
-            keepLeftMenuButton  : setupOptions.keepLeftMenuButton,
+            leftPanel            : setupOptions.leftPanel,
+            leftPanelIcon        : setupOptions.leftPanelIcon,
+            keepLeftPanelButton  : setupOptions.keepLeftPanelButton,
 
-            rightMenu           : setupOptions.rightMenu,
-            rightMenuIcon       : setupOptions.rightMenuIcon,
-            keepRightMenuButton : setupOptions.keepRightMenuButton,
+            rightPanel           : setupOptions.rightPanel,
+            rightPanelIcon       : setupOptions.rightPanelIcon,
+            keepRightPanelButton : setupOptions.keepRightPanelButton,
 
-            bottomMenu          : setupOptions.bottomMenu,
+            bottomPanel          : setupOptions.bottomPanel,
 
             onResizeStart       : setupOptions.onResizeStart,
             onResizeEnd         : setupOptions.onResizeEnd
@@ -113778,53 +114438,67 @@ See src/fcoo-application-create.js
 
     /****************************************************************************
     OPTIONS = {
-        applicationName  : {da:STRING, en:STRING},  //applicationName or applicationHeader are used. Two options available for backward combability
+        //applicationName or applicationHeader are used. Two options available for backward combability
+        applicationName  : {da:STRING, en:STRING},
         applicationHeader: {da:STRING, en:STRING},
 
-        depotOptions: { //Options for saving and loading settings using SavedSettingList (src/fcoo-application-load-save-bookmark-share-setting.js
+        //Options for saving and loading settings using Depot-object (See saved-setting-depot.js)
+        depotOptions: {
             url  : STRING. Url to the service
             token: STRING. Sub-dir with token //Standard "token/"
             depot: STRING. Sub-dir with data  //Standard "depot/"
         }
 
-        topMenu: {
+        topPanel: {
             See description in fcoo/fcoo-application and in nsMap.defaultApplicationOptions below
         }
-        standardMenuOptions: { //Options for the standard-menu/mmenu created by methods in src/fcoo-application-mmenu
-            inclBar    : BOOLEAN,
-            barCloseAll: BOOLEAN,
-            inclBar    : BOOLEAN, if true a bar top-right with buttons from items with options.addToBar = true and favorites (optional) and close-all (if barCloseAll=true)
-            barCloseAll: BOOLEAN, if true a top-bar button is added that closes all open submenus
-            favorites  : BOOLEAN, true = default saving, false: no favorites
-        }
 
-        leftMenu/rightMenu: true or false or {
+        leftPanel/rightPanel: true or false or {
             width: NUMBER,
-            buttons: As leftMenuButtons and rightMenuButtons in fcoo-aapplication = {
+            buttons: As leftPanelButtons and rightPanelButtons = {
                 preButtons  = []buttonOptions or buttonOptions or null //Individuel button(s) placed before the standard buttons
-                save        = true or onClick or buttonOptions, //Standard save-button
-                load        = true or onClick or buttonOptions, //Standard load-button
-                bookmark    = true or onClick or buttonOptions, //Standard bootmark-button
-                share       = true or onClick or buttonOptions, //Standard share-button
-                user        = true or onClick or buttonOptions, //Standard user-button
-                setting     = true or onClick or buttonOptions, //Standard setting-button
+                new         = true or onClick or buttonOptions, //Standard new "something"
+                edit        = true or onClick or buttonOptions, //Standard edit settings
+                save        = true or onClick or buttonOptions, //Standard save save settings
+                load        = true or onClick or buttonOptions, //Standard load load settings
+                bookmark    = true or onClick or buttonOptions,
+                share       = true or onClick or buttonOptions, //Standard share settings
+                user        = true or onClick or buttonOptions,
+
+                cancel      = true or onClick or buttonOptions,
+                ok          = true or onClick or buttonOptions,
+
+                save2       = true or onClick or buttonOptions,
+                reset2      = true or onClick or buttonOptions,
+
+                reset       = true or onClick or buttonOptions, //Standard reset (settings, layers etc)
+                setting     = true or onClick or buttonOptions, //Standard edit global settings (language, formats etc)
                 postButtons = []buttonOptions or buttonOptions or null //Individuel button(s) placed after the standard buttons
             }
 
-            isStandardMenu: true    //True => the standard menu is created in this side using standardMenuOptions and bsMenuOptions
-            bsMenuOptions : {}      //Only if isStandardMenu: true => options for $.BsMmenu when creating the content of the left/right side
+            isStandardMenu: false    //True => the standard menu is created in this side using standardMenuOptions and menuOptions
+            menuOptions   : {}      //Only if isStandardMenu: true => options for $.BsMmenu when creating the content of the left/right side
 
             if isStandardMenu: false:
             fileName: FILENAME, or
             data    : JSON-OBJECT, or
             content : A JSON-OBJECT with content as in fcoo/jquery-bootstrap
 
-            create or resolve : function( data, $container ) - function to create the menus content in $container. Only if fileName or data is given (and isStandardMenu: false)
+            create or resolve : function( data, $container ) - function to create the content of the panels in $container. Only if fileName or data is given (and isStandardMenu: false)
 
         },
 
-        keepLeftMenuButton  : false, //Keeps the left menu-button even if leftMenu is null
-        keepRightMenuButton : false, //Keeps the right menu-button even if rightMenu is null
+        keepLeftPanelButton  : false, //Keeps the left panel-button even if leftPanel is null
+        keepRightPanelButton : false, //Keeps the right panel-button even if rightPanel is null
+
+        //Options for the standard-menu/mmenu created by methods in fcoo-application-mmenu
+        standardMenuOptions: {
+            inclBar    : BOOLEAN,
+            barCloseAll: BOOLEAN,
+            inclBar    : BOOLEAN, if true a bar top-right with buttons from items with options.addToBar = true and favorites (optional) and close-all (if barCloseAll=true)
+            barCloseAll: BOOLEAN, if true a top-bar button is added that closes all open submenus
+            favorites  : BOOLEAN, true = default saving, false: no favorites
+        }
 
 
 
@@ -113855,9 +114529,9 @@ See src/fcoo-application-create.js
                 depot: 'depot/'
             },
 
-            saveLoadShare: '', //STRING or []STRING. "leftMenu", "rightMenu", "topMenu": Defines where the load-, save and share-buttons are shown
+            saveLoadShare: '', //STRING or []STRING. "leftPanel", "rightPanel", "topPanel": Defines where the load-, save and share-buttons are shown
 
-            topMenu            : {
+            topPanel            : {
                 save : false, //If true a save-button is added (see SavedSettingList)
                 load : false, //If true a load-button is added (see SavedSettingList)
                 share: false, //If true a share-button is added (see SavedSettingList)
@@ -113865,13 +114539,13 @@ See src/fcoo-application-create.js
 
             standardMenuOptions: {},
 
-            leftMenu           : false,
-            leftMenuIcon       : 'fa-layer-group',
-            keepLeftMenuButton : false,
+            leftPanel           : false,
+            leftPanelIcon       : 'fa-layer-group',
+            keepLeftPanelButton : false,
 
-            rightMenu          : false,
-            rightMenuIcon      : 'fa-list',
-            keepRightMenuButton: false,
+            rightPanel          : false,
+            rightPanelIcon      : 'fa-list',
+            keepRightPanelButton: false,
 
 
             //Standard setup/options
@@ -114542,11 +115216,14 @@ Create and manage the main structure for FCOO web applications
     Create the main structure return a object with the created element
     ******************************************************************/
     ns.createMain = function( options ){
+
+        ns.__FCOO_APPLICATION_ADJUT_OPTIONS(options);
+
         options = $.extend({}, {
             $mainContainer      : null,
             mainContainerAsHandleContainer: false,
-            maxMenuWidthPercent : 0.5, //Max total width of open menus when change to mode over
-            minMainWidth        : 0,   //Min width of main-container when menu(s) are open
+            maxPanelWidthPercent : 0.5, //Max total width of open panels when change to mode over
+            minMainWidth        : 0,   //Min width of main-container when panel(s) are open
             globalModeOver      : false,
 
             /*
@@ -114555,18 +115232,18 @@ Create and manage the main structure for FCOO web applications
             header
             */
 
-            topMenu             : null,  //Options for top-menu. See src/fcoo-application-top-menu.js
+            topPanel            : null,  //Options for top-panel. See src/fcoo-application-top-panel.js
 
-            leftMenu            : null,      //Options for left-menu. See src/fcoo-application-touch.js. Includes optional buttons: {preButtons,...}
-            leftMenuIcon        : 'fa-bars', //Icon for button that opens left-menu
-            leftMenuButtons     : null,      //Options for buttons in the header of the left-menu. See format below
-            keepLeftMenuButton  : false,     //Keeps the left menu-button even if leftMenu is null
+            leftPanel           : null,      //Options for left-panel. See src/fcoo-application-touch.js. Includes optional buttons: {preButtons,...}
+            leftPanelIcon       : 'fa-bars', //Icon for button that opens left-panel
+            leftPanelButtons    : null,      //Options for buttons in the header of the left-panel. See format below
+            keepLeftPanelButton : false,     //Keeps the left panel-button even if leftPanel is null
 
-            rightMenu           : null,      //Options for right-menu. See src/fcoo-application-touch.js
-            rightMenuIcon       : 'fa-list', //Icon for button that opens right-menu
-            keepRightMenuButton : false,     //Keeps the right menu-button even if rightMenu is null
-            rightMenuButtons    : null,      //Options for buttons in the header of the right-menu. See format below
-            bottomMenu          : null,      //Options for bottom-menu. See src/fcoo-application-touch.js
+            rightPanel          : null,      //Options for right-panel. See src/fcoo-application-touch.js
+            rightPanelIcon      : 'fa-list', //Icon for button that opens right-panel
+            keepRightPanelButton: false,     //Keeps the right panel-button even if rightPanel is null
+            rightPanelButtons   : null,      //Options for buttons in the header of the right-panel. See format below
+            bottomPanel         : null,      //Options for bottom-panel. See src/fcoo-application-touch.js
 
             onResizeStart       : null,  //function(main) to be called when the main-container starts resizing
             onResizing          : null,  //function(main) to be called when the main-container is being resized
@@ -114600,7 +115277,7 @@ Create and manage the main structure for FCOO web applications
                 var addClass = (value === true);
 
                 if (!addClass){
-                    var valueList = $.isArray(value) ? value : [value],
+                    var valueList = Array.isArray(value) ? value : [value],
                         add = true;
                     valueList.forEach( modernizrDeviceProperties => {
                         modernizrDeviceProperties.split(' ').forEach( property => {
@@ -114617,7 +115294,7 @@ Create and manage the main structure for FCOO web applications
 
 
         /*
-        leftMenuButtons or leftMenu.buttons, and rightMenuButtons rightMenu.buttons = {
+        leftPanelButtons or leftPanel.buttons, and rightPanelButtons rightPanel.buttons = {
             preButtons  = []buttonOptions or buttonOptions or null //Individuel button(s) placed before the standard buttons
 
             //Standard buttons = onClick or buttonOptions or true for default onClick
@@ -114637,10 +115314,10 @@ Create and manage the main structure for FCOO web applications
         */
 
         var result = {
-                menus  : [],
+                panels  : [],
                 options: options
             },
-            //Container for all elements used in top-menu
+            //Container for all elements used in top-panel
             $outerContainer = result.$outerContainer =
                 $('<div/>')
                     .addClass("outer-container"),
@@ -114655,106 +115332,106 @@ Create and manage the main structure for FCOO web applications
 
         $mainContainer.addClass("main-container");
 
-        //Append left-menu (if any)
-        if (result.options.leftMenu){
-            result.leftMenu = ns.touchMenu( $.extend({}, result.options.leftMenu, {
+        //Append left-panel (if any)
+        if (result.options.leftPanel){
+            result.leftPanel = ns.touchPanel( $.extend({}, result.options.leftPanel, {
                 position           : 'left',
                 $neighbourContainer: $outerContainer,
-                preMenuClassName   : 'vertical-pre-menu',
+                prePanelClassName   : 'vertical-pre-panel',
                 hideHandleWhenOpen : true,
                 $handleContainer   : $leftAndRightHandleContainer,
                 multiMode          : true,
                 resetListPrepend   : true,
                 main               : result
             }));
-            $body.append( result.leftMenu.$container );
-            result.menus.push(result.leftMenu);
+            $body.append( result.leftPanel.$container );
+            result.panels.push(result.leftPanel);
         }
 
         //Append the outer container
         $outerContainer.appendTo( $body );
 
-        //Create and append top-menu (if any).
-        //Add left-menu if leftMenu: true or keepLeftMenuButton = true. Use leftMenuicon as icon. Same for right-menu
-        if (result.options.topMenu){
-            var topMenuOptions = $.extend({}, result.options.topMenu, {
-                    leftMenu : result.options.leftMenu  || result.options.keepLeftMenuButton  ? {icon: $.FONTAWESOME_PREFIX_STANDARD + ' ' + result.options.leftMenuIcon} : false,
-                    rightMenu: result.options.rightMenu || result.options.keepRightMenuButton ? {icon: $.FONTAWESOME_PREFIX_STANDARD + ' ' +result.options.rightMenuIcon} : false
+        //Create and append top-panel (if any).
+        //Add left-panel if leftPanel: true or keepLeftPanelButton = true. Use leftPanelIcon as icon. Same for right-panel
+        if (result.options.topPanel){
+            var topPanelOptions = $.extend({}, result.options.topPanel, {
+                    leftPanel : result.options.leftPanel  || result.options.keepLeftPanelButton  ? {icon: $.FONTAWESOME_PREFIX_STANDARD + ' ' + result.options.leftPanelIcon} : false,
+                    rightPanel: result.options.rightPanel || result.options.keepRightPanelButton ? {icon: $.FONTAWESOME_PREFIX_STANDARD + ' ' +result.options.rightPanelIcon} : false
                 });
 
-            result.topMenuObject = ns.createTopMenu( topMenuOptions );
-            $outerContainer.append( result.topMenuObject.$container );
+            result.topPanelObject = ns.createTopPanel( topPanelOptions );
+            $outerContainer.append( result.topPanelObject.$container );
 
 
-            result.topMenu = ns.touchMenu({
+            result.topPanel = ns.touchPanel({
                 position           : 'top',
-                height             : result.topMenuObject.$menu.outerHeight() + 1,  //+ 1 = bottom-border
+                height             : result.topPanelObject.$panel.outerHeight() + 1,  //+ 1 = bottom-border
                 $neighbourContainer: $mainContainer,
-                $container         : result.topMenuObject.$menu,
-                $menu              : false,
+                $container         : result.topPanelObject.$panel,
+                $panel              : false,
 
                 isOpen             : true,
                 standardHandler    : true,
-                main: result
+                main               : result
             });
-            result.menus.push(result.topMenu);
+            result.panels.push(result.topPanel);
         }
 
         //Append main-container to outer-container
         $outerContainer.append( $mainContainer );
 
-        //Create and append bottom-menu (if any)
-        if (result.options.bottomMenu){
-            result.bottomMenu = ns.touchMenu( $.extend({}, result.options.bottomMenu, {
+        //Create and append bottom-panel (if any)
+        if (result.options.bottomPanel){
+            result.bottomPanel = ns.touchPanel( $.extend({}, result.options.bottomPanel, {
                 position           : 'bottom',
                 $neighbourContainer: $mainContainer,
                 main: result
             }));
-            $outerContainer.append( result.bottomMenu.$container );
-            result.menus.push(result.bottomMenu);
+            $outerContainer.append( result.bottomPanel.$container );
+            result.panels.push(result.bottomPanel);
         }
 
-        //Create and append right-menu (if any). It appear as a box
-        if (result.options.rightMenu){
-            result.rightMenu = ns.touchMenu( $.extend({}, result.options.rightMenu, {
+        //Create and append right-panel (if any). It appear as a box
+        if (result.options.rightPanel){
+            result.rightPanel = ns.touchPanel( $.extend({}, result.options.rightPanel, {
                 position           : 'right',
                 $neighbourContainer: $outerContainer,
-                preMenuClassName   : 'vertical-pre-menu',
+                prePanelClassName   : 'vertical-pre-panel',
                 hideHandleWhenOpen : true,
                 $handleContainer   : $leftAndRightHandleContainer,
                 multiMode          : true,
-                main: result
+                main               : result
             }));
-            $body.append( result.rightMenu.$container );
-            result.menus.push(result.rightMenu);
+            $body.append( result.rightPanel.$container );
+            result.panels.push(result.rightPanel);
         }
 
-        //Create close-button in left and right pre-menu
+        //Create close-button in left and right pre-panel
         var iconPrefix = 'fa-chevron-';
         //OR var iconPrefix = 'fa-chevron-circle-';
         //OR var iconPrefix = 'fa-arrow-';
 
-        //Toggle left and right-menu on click
-        if (result.options.leftMenu)
-            result.topMenuObject.leftMenu.on('click', $.proxy(result.leftMenu.toggle, result.leftMenu));
+        //Toggle left and right-panel on click
+        if (result.options.leftPanel)
+            result.topPanelObject.leftPanel.on('click', $.proxy(result.leftPanel.toggle, result.leftPanel));
 
-        if (result.options.rightMenu)
-            result.topMenuObject.rightMenu.on('click', $.proxy(result.rightMenu.toggle, result.rightMenu));
+        if (result.options.rightPanel)
+            result.topPanelObject.rightPanel.on('click', $.proxy(result.rightPanel.toggle, result.rightPanel));
 
 
-        //If application has left-menu and/or right-menu: Set up event to change between mode=side and mode=over
-        if (result.options.leftMenu || result.options.rightMenu){
+        //If application has left-panel and/or right-panel: Set up event to change between mode=side and mode=over
+        if (result.options.leftPanel || result.options.rightPanel){
             //Left and right points to each other
-            if (result.options.leftMenu && result.options.rightMenu){
-                var _onOpen  = result._left_right_menu_onOpen.bind(result),
-                    _onClose = result._left_right_menu_onClose.bind(result);
-                result.leftMenu._onOpen.push(_onOpen);
-                result.leftMenu._onClose.push(_onClose);
-                result.leftMenu.theOtherMenu = result.rightMenu;
+            if (result.options.leftPanel && result.options.rightPanel){
+                var _onOpen  = result._left_right_panel_onOpen.bind(result),
+                    _onClose = result._left_right_panel_onClose.bind(result);
+                result.leftPanel._onOpen.push(_onOpen);
+                result.leftPanel._onClose.push(_onClose);
+                result.leftPanel.theOtherPanel = result.rightPanel;
 
-                result.rightMenu._onOpen.push(_onOpen);
-                result.rightMenu._onClose.push(_onClose);
-                result.rightMenu.theOtherMenu = result.leftMenu;
+                result.rightPanel._onOpen.push(_onOpen);
+                result.rightPanel._onClose.push(_onClose);
+                result.rightPanel.theOtherPanel = result.leftPanel;
             }
 
             $body.resize( result._onBodyResize.bind(result) );
@@ -114762,15 +115439,15 @@ Create and manage the main structure for FCOO web applications
         }
 
         //**************************************************
-        //Add menu-buttons to left and right menu. button-options can be in options.[left/right]MenuButtons or options.[left/right]Menu.buttons
-        function createMenuButtons(side){
-            var menuOptions = result.options[side+'Menu'],
-                options     = menuOptions ? menuOptions.buttons || result.options[side+'MenuButtons'] || {} : {},
-                menu        = result[side+'Menu'],
+        //Add panel-buttons to left and right panel. button-options can be in options.[left/right]PanelButtons or options.[left/right]Panel.buttons
+        function createPanelButtons(side){
+            var panelOptions = result.options[side+'Panel'],
+                options     = panelOptions ? panelOptions.buttons || result.options[side+'PanelButtons'] || {} : {},
+                panel        = result[side+'Panel'],
                 sideIsLeft  = side == 'left',
                 sideIsRight = side == 'right',
-                multiSize   = menu ? menu.options.sizeList.length > 1 : false,
-                $container  = menu ? menu.$preMenu : null;
+                multiSize   = panel ? panel.options.sizeList.length > 1 : false,
+                $container  = panel ? panel.$prePanel : null;
 
             if (!$container) return;
 
@@ -114783,34 +115460,36 @@ Create and manage the main structure for FCOO web applications
                     .toggleClass('flex-grow-1', sideIsLeft)
                     .toggleClass('btn-group', multiSize);
 
-            menu.btnDecSize =
+            panel.btnDecSize =
                 $.bsButton({
                     bigIcon: true,
                     square : true,
                     icon   : iconPrefix + side,
-                    onClick: menu.decSize,
-                    context: menu
+                    class  : 'flex-grow-0',
+                    onClick: panel.decSize,
+                    context: panel
                 }).appendTo($closeButtonDiv);
 
             if (multiSize){
-                menu.btnIncSize =
+                panel.btnIncSize =
                     $.bsButton({
                         bigIcon: true,
                         square : true,
+                        class  :'flex-grow-0',
                         icon   : iconPrefix + (sideIsLeft ? 'right' : 'left'),
-                        onClick: menu.incSize,
-                        context: menu
+                        onClick: panel.incSize,
+                        context: panel
                     });
                 if (sideIsLeft)
-                    $closeButtonDiv.append( menu.btnIncSize );
+                    $closeButtonDiv.append( panel.btnIncSize );
                 else
-                    $closeButtonDiv.prepend( menu.btnIncSize );
+                    $closeButtonDiv.prepend( panel.btnIncSize );
             }
 
 
             var buttonGroups = [];
             if (options.preButtons)
-                buttonGroups.push( $.isArray(options.preButtons) ? options.preButtons : [options.preButtons]);
+                buttonGroups.push( Array.isArray(options.preButtons) ? options.preButtons : [options.preButtons]);
 
             //Add standard buttons
             var buttonList = [];
@@ -114848,7 +115527,7 @@ Create and manage the main structure for FCOO web applications
                 buttonGroups.push(buttonList);
 
             if (options.postButtons)
-                buttonGroups.push( $.isArray(options.postButtons) ? options.postButtons : [options.postButtons]);
+                buttonGroups.push( Array.isArray(options.postButtons) ? options.postButtons : [options.postButtons]);
 
             //Create the buttons
             $.each(buttonGroups, function(index, buttonList){
@@ -114873,27 +115552,27 @@ Create and manage the main structure for FCOO web applications
                 $closeButtonDiv.appendTo($container);
         }
         //****************************************************
-        createMenuButtons('left');
-        createMenuButtons('right');
+        createPanelButtons('left');
+        createPanelButtons('right');
 
 
         /*
         Set up for detecting resize-start and resize-end of main-container
         */
 
-        //Detect when any of the touch-menus are opened/closed using touch
+        //Detect when any of the touch-panels are opened/closed using touch
         result.options.onResizeStart = result.options.onResizeStart || result.options.onResize;
 
         $mainContainer.resize( result._main_onResize.bind(result) );
 
-        $.each(['leftMenu', 'rightMenu', 'topMenu', 'bottomMenu'], function(index, menuId){
-            var menu = result[menuId];
-            if (menu){
-                menu.onTouchStart = result._mainResize_onTouchStart.bind(result);
-                menu.onTouchEnd   = result._mainResize_onTouchEnd.bind(result);
+        $.each(['leftPanel', 'rightPanel', 'topPanel', 'bottomPanel'], function(index, id){
+            var panel = result[id];
+            if (panel){
+                panel.onTouchStart = result._mainResize_onTouchStart.bind(result);
+                panel.onTouchEnd   = result._mainResize_onTouchEnd.bind(result);
 
-                menu._onOpen.push( result._mainResize_onOpenOrClose.bind(result) );
-                menu._onClose.push( result._mainResize_onOpenOrClose.bind(result) );
+                panel._onOpen.push( result._mainResize_onOpenOrClose.bind(result) );
+                panel._onClose.push( result._mainResize_onOpenOrClose.bind(result) );
             }
         });
 
@@ -114907,25 +115586,25 @@ Create and manage the main structure for FCOO web applications
     var main_prototype = {
             wasForcedToClose: null,
 
-            _maxSingleMenuWidth: function(){
+            _maxSinglePanelWidth: function(){
                 var result = 0;
 
-                if (this.leftMenu)
-                    result = Math.max(result, this.leftMenu.options.menuDimAndSize.size);
+                if (this.leftPanel)
+                    result = Math.max(result, this.leftPanel.options.panelDimAndSize.size);
 
-                if (this.rightMenu)
-                    result = Math.max(result, this.rightMenu.options.menuDimAndSize.size);
+                if (this.rightPanel)
+                    result = Math.max(result, this.rightPanel.options.panelDimAndSize.size);
 
                 return result;
             },
 
 
-            _totalMenuWidth: function(){
+            _totalPanelWidth: function(){
                 var result = 0;
-                if (this.options.leftMenu && this.options.rightMenu){
-                    [this.leftMenu, this.rightMenu].forEach(menu => {
-                        const width = menu.options.menuDimAndSize.size;
-                        result = result + (typeof width == 'number' ? width : menu.$container.width());
+                if (this.options.leftPanel && this.options.rightPanel){
+                    [this.leftPanel, this.rightPanel].forEach(panel => {
+                        const width = panel.options.panelDimAndSize.size;
+                        result = result + (typeof width == 'number' ? width : panel.$container.width());
                     });
                 }
                 return result;
@@ -114934,16 +115613,16 @@ Create and manage the main structure for FCOO web applications
 
 
             /******************************************************
-            Functions to manage the automatic closing of the menu
-            on the other side when a left or right menu is opened
+            Functions to manage the automatic closing of the panel
+            on the other side when a left or right panel is opened
             ******************************************************/
-            _left_right_menu_onOpen: function(menu){
-                this.lastOpenedMenu = menu;
+            _left_right_panel_onOpen: function(panel){
+                this.lastOpenedPanel = panel;
                 this._onBodyResize();
             },
 
-            _left_right_menu_onClose: function(menu){
-                if (this.wasForcedToClose && (this.wasForcedToClose !== menu))
+            _left_right_panel_onClose: function(panel){
+                if (this.wasForcedToClose && (this.wasForcedToClose !== panel))
                     this.wasForcedToClose.open();
                 this.wasForcedToClose = null;
             },
@@ -114953,23 +115632,23 @@ Create and manage the main structure for FCOO web applications
                 this.wasForcedToClose = null;
 
                 var bodyWidth = $body.width(),
-                    maxTotalMenuWidthAllowed = Math.min(this.options.maxMenuWidthPercent*bodyWidth, bodyWidth - this.options.minMainWidth),
-                    newModeIsOver = this._maxSingleMenuWidth() >=  maxTotalMenuWidthAllowed,
-                    totalMenuWidth = this._totalMenuWidth(),
-                    //Find last opened menu if there are two oen menus
-                    firstOpenedMenu = totalMenuWidth && this.leftMenu.isOpen && this.rightMenu.isOpen ? (this.lastOpenedMenu ? this.lastOpenedMenu.theOtherMenu : null) : null;
+                    maxTotalPanelWidthAllowed = Math.min(this.options.maxPanelWidthPercent*bodyWidth, bodyWidth - this.options.minMainWidth),
+                    newModeIsOver = this._maxSinglePanelWidth() >=  maxTotalPanelWidthAllowed,
+                    totalPanelWidth = this._totalPanelWidth(),
+                    //Find last opened panel if there are two open panels
+                    firstOpenedPanel = totalPanelWidth && this.leftPanel.isOpen && this.rightPanel.isOpen ? (this.lastOpenedPanel ? this.lastOpenedPanel.theOtherPanel : null) : null;
 
                 this.isResizing = true;
                 this.options.globalModeOver = newModeIsOver;
-                if (this.leftMenu)  this.leftMenu.setMode ( newModeIsOver );
-                if (this.rightMenu) this.rightMenu.setMode( newModeIsOver );
+                if (this.leftPanel)  this.leftPanel.setMode ( newModeIsOver );
+                if (this.rightPanel) this.rightPanel.setMode( newModeIsOver );
                 this.isResizing = false;
 
-                //If both menus are open and mode == over or not space for both => close the menu first opened
-                if (firstOpenedMenu && (newModeIsOver || (totalMenuWidth > maxTotalMenuWidthAllowed))){
-                    firstOpenedMenu.close();
+                //If both panels are open and mode == over or not space for both => close the panel first opened
+                if (firstOpenedPanel && (newModeIsOver || (totalPanelWidth > maxTotalPanelWidthAllowed))){
+                    firstOpenedPanel.close();
                     if (!newModeIsOver)
-                        this.wasForcedToClose = firstOpenedMenu;
+                        this.wasForcedToClose = firstOpenedPanel;
                 }
             },
 
@@ -115327,8 +116006,8 @@ Objects and methods to set up Mmenu via $.bsMmenu
     var favoriteSetting = null, //SettingGroup to hold the favorites in the menus
         favoriteSettingId = '__FAVORITES__',
 
-menuSetting = null, //SettingGroup to hold the state of the menu (open/closed)
-menuSettingId = '__MENU__',
+        menuSetting = null, //SettingGroup to hold the state of the menu (open/closed)
+        menuSettingId = '__MENU__',
 
         bsMenus = {}; //{id:BsMenu}
 
@@ -115344,7 +116023,7 @@ menuSettingId = '__MENU__',
     function favoritesSetting_afterLoad(){
         $.each(bsMenus, (id, bsMenu) => setFavorites(bsMenu) );
     }
-    
+
     function favorite_get(menuId, itemId){
         if (favoriteSetting && favoriteSetting.data && favoriteSetting.data[menuId])
             return favoriteSetting.data[menuId][itemId];
@@ -115365,11 +116044,14 @@ menuSettingId = '__MENU__',
     function menusSetting_afterLoad(){
         if (menuSetting && menuSetting.data)
             $.each(bsMenus, (id, bsMenu) => {
+
+                bsMenu.openItemIdList = bsMenu.openItemIdList || {};
+
                 (menuSetting.data[id] || '').split(' ').forEach( menuItemId => {
-                    let menuItem = bsMenu.getItem(menuItemId);                 
-                    if (menuItem)
-                        menuItem.open();
+                    bsMenu.openItemIdList[menuItemId] = true;
                 });
+
+                bsMenu.setOpenAndClosedItems();
             });
     }
 
@@ -115377,15 +116059,15 @@ menuSettingId = '__MENU__',
     function menu_onOpenOrClose(menuItem, open, bsMenu){
         //Save a list of all open menu-item-ids
         let data = [];
-        $.each(bsMenu.openItemIdList || {}, (id, open) => { if (open) data.push(id); });       
+        $.each(bsMenu.openItemIdList || {}, (id, open) => { if (open) data.push(id); });
 
         if (menuSetting && menuSetting.data){
             menuSetting.data = menuSetting.data || {};
             menuSetting.data[bsMenu.id] = data.join(' ');
             menuSetting.saveAs(menuSettingId);
         }
-    }        
-    
+    }
+
     ns.createMmenu = function( menuId, options, $container ){
         if (!favoriteSetting){
             favoriteSetting = new ns.SettingGroup({simpleMode: true});
@@ -115421,18 +116103,18 @@ menuSettingId = '__MENU__',
             options.reset.title = ns.texts.reset;
 
         }
-        
+
         //Set default save open/close
         if (!options.onOpenOrClose)
             options.onOpenOrClose = menu_onOpenOrClose;
 
-        
+
         //Create the menu
         var bsMenu =
                 $.bsMmenu(
                     options, {
                         offCanvas      : false,
-                        slidingSubmenus: ns.modernizrDevice.isPhone
+                        slidingSubmenus: false,//ns.modernizrDevice.isPhone
                     }).create( $container );
 
         bsMenu.id = bsMenu.options.id || menuId;
@@ -115742,7 +116424,7 @@ load setup-files in fcoo.promiseList after checking for test-modes
     //Adjust options for ns.promiseList
     ['prePromiseAll', 'finally', 'finish'].forEach( function(optionsId){
         var opt = ns.promiseList.options[optionsId];
-        ns.promiseList.options[optionsId] = opt ? ($.isArray(opt) ? opt : [opt]) : [];
+        ns.promiseList.options[optionsId] = opt ? (Array.isArray(opt) ? opt : [opt]) : [];
     });
 
     /***********************************************************************
@@ -116008,7 +116690,7 @@ load setup-files in fcoo.promiseList after checking for test-modes
 
         //*******************************************
         function adjustFileName(fileNameOrList, testRec){
-            if ($.isArray(fileNameOrList)){
+            if (Array.isArray(fileNameOrList)){
                 $.each(fileNameOrList, function(index, fileName){
                     fileNameOrList[index] = adjustFileName(fileName, testRec);
                 });
@@ -116064,7 +116746,7 @@ load setup-files in fcoo.promiseList after checking for test-modes
         //Check all files in allList and adjust the file(s) to load
         var fileNameVersions = promiseList.options.fileNameVersions;
         allList.forEach( function( promiseOptions ){
-            var onlyFileName = promiseOptions.fileName && !$.isArray(promiseOptions.fileName) ? promiseOptions.fileName.fileName : '',
+            var onlyFileName = promiseOptions.fileName && !Array.isArray(promiseOptions.fileName) ? promiseOptions.fileName.fileName : '',
                 fileVersion = fileNameVersions[onlyFileName];
 
             if (fileVersion){
@@ -116375,7 +117057,7 @@ Example:
 
 let ownerList = {};
 //In some package :
-ownerList['OBSERVATIONS"] = function(options, addMenu){
+ownerList['OBSERVATIONS"] = function(options, addMenu, adjustParentMenuOptions, menuOptions)
     //Adjust the options (if needed)
     ...
 
@@ -116392,7 +117074,7 @@ and the menu "OBSERVATIONS_MENU" are being adjustedd and have three sub-menus ad
 
 It is possible to use another owner-list when creating another version of the menu-structure to have different adjustments
 
-All menu-items in standard menu-structure that reference to a "owner-function" in the given user-list, are removed.
+All menu-items in standard menu-structure that do not reference to a "owner-function" in the given user-list, are removed.
 In the example:
 If the applicatuion do not include a package that sets a owner-function for "OBSERVATIONS"
 the hole menu-item "OBSERVATIONS_MENU" are removed automatic.
@@ -116401,26 +117083,35 @@ The sub-menus and/or the finally options for a menu-item can also be in a sepera
 
 The reading of the setup-file (fcoo-menu.json) or other file or direct options are always do via ns.promiseList.append
 
-METHOD: window.fcoo.createFCOOMenu(ownerList: OWNER_LIST, fileNameOrMenuOptions: FILENAME or MENU_OPTIONS)
+Method window.fcoo.createFCOOMenu(options: MENU_OPTIONS)
 
-OWNER_LIST = {id:MENUITEM_ID} of FUNCTION(options: MENUITEM_OPTIONS, addMenu: function(list: MENUITEM_LIST))
-The function given for ownerList[ID] can also contain info on sub-menuitems and/or include reading a setup-file for the specific menu-item
+    MENU_OPTIONS = {
+        fileName: FILENAME,
+        menuList or list: MENU_ITEM_LIST
+        ownerList       : OWNER_LIST
+        finallyFunc     : FUNCTION,
+        fileNameOrMenuOptions: FILENAME or MENU_ITEM_LIST
+    }
 
-FILENAME = Path to file. Two versions:
-    1: Relative path locally e.q. "data/info.json"
-    2: Using ns.dataFilePath (See fcoo-data-files): {subDir, fileName}.
-    E.q. {subDir: "theSubDir", fileName:"theFileName.json"} => "https://app.fcoo.dk/static/theSubDir/theFileName.json"
-The content of the file must be MENU_OPTIONS
+    FILENAME = Path to file. Two versions:
+        1: Relative path locally e.q. "data/info.json"
+        2: Using ns.dataFilePath (See fcoo-data-files): {subDir, fileName}.
+        E.q. {subDir: "theSubDir", fileName:"theFileName.json"} => "https://app.fcoo.dk/static/theSubDir/theFileName.json"
+    The content of the file must be MENU_ITEM_LIST
 
-MENU_OPTIONS = MENUITEM_LIST =[]MENUITEM_OPTIONS
+    MENU_ITEM_LIST = []MENU_ITEM
 
-MENUITEM_OPTIONS = {icon, text,..., list:MENU_OPTIONS}  - The options to create the menu-item. list = [] of sub-menus, or
-MENUITEM_OPTIONS = {ID: BOOLEAN}                        - false : Do not include, true: Include with default options (=LAYEROPTIONS) given in the packages that build the layer, or
-MENUITEM_OPTIONS = {ID: FILENAME}                       - Include with the options (=LAYEROPTIONS) given in FILENAME pared with the default options, or
-MENUITEM_OPTIONS = {ID: (=OWNER_ID)} or OWNER_ID        - Include with (=LAYEROPTIONS) pared with the default options, or
-MENUITEM_OPTIONS = MMENUITEMOPTIONS                     = Options for a menu-item without layer-toggle. See fcoo/jquery-bootstrap-mmenu for details.
+    MENU_ITEM = {icon, text,..., list:MENU_ITEM_LIST} - The options to create the menu-item. list = [] of sub-menus, or
+    MENU_ITEM = {ID: BOOLEAN}                         - false : Do not include, true: Include with default options (=LAYEROPTIONS) given in the packages that build the layer, or
+    MENU_ITEM = {ID: FILENAME}                        - Include with the options (=LAYEROPTIONS) given in FILENAME pared with the default options, or
+    MENU_ITEM = {ID: (=OWNER_ID)} or OWNER_ID         - Include with (=LAYEROPTIONS) pared with the default options, or
+    MENU_ITEM = MMENUITEMOPTIONS                      - Options for a menu-item without layer-toggle. See fcoo/jquery-bootstrap-mmenu for details.
 
-OWNER_ID = STRING = Ref. to a entry in the given OWNER_LIST
+    OWNER_ID = STRING = Ref. to a entry in the given OWNER_LIST
+
+    OWNER_LIST = {MENU_ITEM_ID: FUNCTION(options: MENU_ITEM, addMenu: function(list: MENU_ITEM_LIST))}
+
+
 
 ****************************************************************************/
 (function ($, moment, window/*, document, undefined*/) {
@@ -116430,9 +117121,31 @@ OWNER_ID = STRING = Ref. to a entry in the given OWNER_LIST
 
 
     /****************************************************************************
+    4: "Load" layerMenu and create the layers and the options for the mmenu
+    5: "Load" the added layers via there build-method
+   /****************************************************************************/
 
-4: "Load" layerMenu and create the layers and the options for the mmenu
-5: "Load" the added layers via there build-method
+    //adjustMenuOptions( menuOptions ) adjust menuOptions to allow simple list/object with menu-items
+    ns.adjustMenuOptions = function( menuOptions ){
+        if (!menuOptions)
+            return null;
+
+        //If menuOptions isn't a array and contain "fileName", "menuList", "list", or "fileNameOrMenuOptions" it is a "full" menuOptions.
+        if (!Array.isArray(menuOptions)){
+            if (window.intervals.isFileName(menuOptions))
+                return {fileName: menuOptions};
+
+            let returnIt = false;
+            ['fileName', 'menuList', 'list', 'fileNameOrMenuOptions', 'ownerList', 'finallyFunc'].forEach( id => {
+                if (menuOptions[id] !== undefined)
+                    returnIt = true;
+            });
+
+            if (returnIt)
+                return menuOptions;
+        }
+        return {list: menuOptions};
+    };
 
 
     /*********************************************
@@ -116476,8 +117189,10 @@ OWNER_ID = STRING = Ref. to a entry in the given OWNER_LIST
         }
 
         menuItem.id = menuItem.id || id;
+
         //Convert/adjust the items submenus (in list or submenus)
-        menuItem.list = convertList( menuItem.list || menuItem.submenus );
+        if (menuItem.list || menuItem.submenus)
+            menuItem.list = convertList( menuItem.list || menuItem.submenus );
         delete menuItem.submenus;
 
         return menuItem;
@@ -116489,7 +117204,7 @@ OWNER_ID = STRING = Ref. to a entry in the given OWNER_LIST
             return null;
 
         var result = [];
-        if ($.isArray(listOrSubmenus))
+        if (Array.isArray(listOrSubmenus))
             $.each(listOrSubmenus, (index, menuItem) => {
                 var adjustedMenuItem = adjustMenuItem(null, menuItem);
                 if (adjustedMenuItem)
@@ -116508,17 +117223,35 @@ OWNER_ID = STRING = Ref. to a entry in the given OWNER_LIST
 
 
     /*************************************************************************
-    createFCOOMenu(options = {ownerList, finallyFunc, fileNameOrMenuOptions})
+    createFCOOMenu(options)
+    options = {
+        fileName             : FILENAME,
+        menuList or list     : MENU_ITEM_LIST
+        ownerList            : OWNER_LIST
+        finallyFunc          : FUNCTION,
+        fileNameOrMenuOptions: FILENAME or MENU_ITEM_LIST
+    }
     *************************************************************************/
-    ns.createFCOOMenu = function(options){
+    ns.createFCOOMenu = function( options ){
         options.replaceMenuItems = {};
-        options.fileNameOrMenuOptions = options.fileNameOrMenuOptions || {subDir: 'setup', fileName:'fcoo-menu.json'}; //File name rettes til fcoo-menu.json
+        options.fileNameOrMenuOptions =
+            options.fileNameOrMenuOptions ||
+            options.fileName ||
+            options.menuList ||
+            options.list ||
+            {subDir: 'setup', fileName: 'fcoo-menu.json'};
 
-        ns.promiseList.append( ns.options2promiseOptions( options.fileNameOrMenuOptions, resolveMenu.bind(null, options), true ) );
+        ns.promiseList.append(
+            ns.options2promiseOptions(
+                options.fileNameOrMenuOptions,
+                resolveMenu.bind(null, options),
+                true
+            )
+        );
     };
 
     /*********************************************
-
+    resolveMenu(options, listOrMenus)
     *********************************************/
     function resolveMenu(options, listOrMenus){
         options.menuList = convertList(listOrMenus);
@@ -116534,23 +117267,24 @@ OWNER_ID = STRING = Ref. to a entry in the given OWNER_LIST
     }
 
     /*********************************************
-
+    createMenu(menuList, parentMenuOptions, options)
     *********************************************/
     function createMenu(menuList, parentMenuOptions, options){
         $.each(menuList, function(index, menuItem){
-            let ownerFunc = menuItem.isOwnerMenu && !menuItem.ownerFuncCalled ? options.ownerList[menuItem.id] : null;
-
+            let ownerFunc = menuItem.isOwnerMenu && options.ownerList && !menuItem.ownerFuncCalled ? options.ownerList[menuItem.id] : null;
             if (ownerFunc){
                 ownerFunc(
                     menuItem.options || {},
-                    function(menuItemOrList)                     { addMenu(menuItemOrList, menuList, menuItem.id, options); },  //addMenu
-                    function(adjustmentsToParentMenuOptions = {}){ $.extend(parentMenuOptions, adjustmentsToParentMenuOptions); }   //adjustParentMenuOptions
+                    function(menuItemOrList)                     { addMenu(menuItemOrList, menuList, menuItem.id, options); },      //addMenu
+                    function(adjustmentsToParentMenuOptions = {}){ $.extend(parentMenuOptions, adjustmentsToParentMenuOptions); },  //adjustParentMenuOptions
+                    options                                                                                                         //menuOptions
                 );
 
                 //Mark the owner-menu as completed
                 menuList[index].ownerFuncCalled = true;
 
             }
+
             if (menuItem.list)
                 createMenu(menuItem.list, menuItem, options);
         });
@@ -116561,24 +117295,36 @@ OWNER_ID = STRING = Ref. to a entry in the given OWNER_LIST
     *********************************************/
     function addMenu(menuItemOrList, parentList, id, options){
         //Append menuItemOrList to replaceMenuItems to be replaced in updateMenuList
-        options.replaceMenuItems[id] = $.isArray(menuItemOrList) ? menuItemOrList : [menuItemOrList];
+        options.replaceMenuItems[id] = options.replaceMenuItems[id] || [];
+        options.replaceMenuItems[id] = options.replaceMenuItems[id].concat( Array.isArray(menuItemOrList) ? menuItemOrList : [menuItemOrList] );
     }
 
     /*********************************************
 
     *********************************************/
     function finishMenu(options){
+        //**************************************************
         //If any owner-function was called => Check again since some owner-functions may have just added new menuItems and owner-functions
-        let createMenuAgain = false;
-        options.menuList.forEach(menuItem => {
-            if (menuItem.isOwnerMenu && !menuItem.ownerFuncCalled)
-                createMenuAgain = true;
-        });
+        function checkMenuList( menuList ){
+            let createMenuAgain = false;
+            (menuList || []).forEach(menuItem => {
+                if (menuItem.isOwnerMenu && !menuItem.ownerFuncCalled)
+                    createMenuAgain = true;
+                if (menuItem.list)
+                    checkMenuList( menuItem.list );
+            });
+            if (createMenuAgain)
+                createMenu(menuList, {}, options);
+        }
+        //**************************************************
 
-        if (createMenuAgain)
-            createMenu(options.menuList, {}, options);
+        //1: Update all menu-items
+        updateMenuList(options.menuList, options);
 
-        //Remove any empty menu-items
+        //2: Check if any menu-item need updating/creating
+        checkMenuList(options.menuList);
+
+        //3: Update all menu-items again
         updateMenuList(options.menuList, options);
 
         if (options.finallyFunc)
@@ -116595,14 +117341,14 @@ OWNER_ID = STRING = Ref. to a entry in the given OWNER_LIST
         //Replace menu-item from replaceMenuItems
         for (index=menuList.length-1; index>=0; index--){
             menuItem = menuList[index];
-            if (menuItem && menuItem.id && options.replaceMenuItems[menuItem.id])
+            if (menuItem && menuItem.id && options.replaceMenuItems[menuItem.id]){
                 menuList.splice(index, 1, ...options.replaceMenuItems[menuItem.id]);
+                options.replaceMenuItems[menuItem.id] = null; //Clean up to prevent repeating
+            }
         }
 
         for (index=menuList.length-1; index>=0; index--){
             menuItem = menuList[index];
-
-
             //Convert icon (if exists and possible)
             if (menuItem.icon && $.isPlainObject(menuItem.icon)){
                 //Convert icon with colorName(s) to "real" icons
@@ -116618,14 +117364,17 @@ OWNER_ID = STRING = Ref. to a entry in the given OWNER_LIST
                     );
             }
 
-
             if (menuItem && menuItem.list)
                 updateMenuList(menuItem.list, options);
 
             if (menuItem && !menuItem.isOwnerMenu && ((menuItem.list && menuItem.list.length) || menuItem.type))
                 /* Keep menu-item*/;
             else
-                if (!options.keepAll)
+                if (options.keepAll){
+                    menuItem.icon = menuItem.icon || 'far fa-question';
+                    menuItem.text = menuItem.text || {da: 'MANGLER', en:'MISSING'};
+                }
+                else
                     menuList.splice(index, 1);
         }
     }
@@ -116636,14 +117385,14 @@ OWNER_ID = STRING = Ref. to a entry in the given OWNER_LIST
 
 ;
 /****************************************************************************
-	fcoo-application-top-menu.js
+	fcoo-application-top-panel.js
 
 	(c) 2017, FCOO
 
 	https://gitlab.com/fcoo/fcoo-application
 	https://gitlab.com/fcoo
 
-Create and manage the top-menu for FCOO web applications
+Create and manage the top-panel for FCOO web applications
 
 ****************************************************************************/
 
@@ -116654,20 +117403,20 @@ Create and manage the top-menu for FCOO web applications
     var ns = window.fcoo = window.fcoo || {};
 
     /**************************************************
-    defaultTopMenuButton
-    Create standard button for the top-menu
+    defaultTopPanelButton
+    Create standard button for the top-panel
     **************************************************/
-    function defaultTopMenuButton( $menu, options ){
+    function defaultTopPanelButton( $panel, options ){
         options = $.extend({bigIcon: true, square: true}, options);
         var $result = $.bsButton( options );
         if (options.title)
             $result.i18n(options.title, 'title');
-        $result.addClass('top-menu-item');
+        $result.addClass('top-panel-item');
         return $result;
     }
 
-    function createOpenMenuButton( $menu, elementOptions, menuOptions/*, topMenu */){
-        return defaultTopMenuButton($menu, menuOptions);
+    function createOpenPanelButton( $panel, elementOptions, panelOptions/*, topPanel */){
+        return defaultTopPanelButton($panel, panelOptions);
     }
 
     function defaultAddToElementList( $element, elementList, priority, minWidth ){
@@ -116679,46 +117428,46 @@ Create and manage the top-menu for FCOO web applications
     }
 
     /**************************************************
-    messageGroupTopMenuButton( $menu, allReadIcon, notAllReadIcon )
+    messageGroupTopPanelButton( $panel, allReadIcon, notAllReadIcon )
     Create a button used for message-groups
     The button contains two icons:
         allReadIcon   : displayed when all messages are read
         notAllReadIcon: displayed when one or more message is unread
     **************************************************/
-    function messageGroupTopMenuButton( $menu, allReadIcon, notAllReadIcon ){
+    function messageGroupTopPanelButton( $panel, allReadIcon, notAllReadIcon ){
         var iconList = [];
         function addIcon( icon, className ){
-            icon = $.isArray(icon) ? icon : [icon];
+            icon = Array.isArray(icon) ? icon : [icon];
             icon.forEach( iconClass => iconList.push(iconClass + ' ' + className ) );
         }
         addIcon(allReadIcon,     'show-for-all-read');
         addIcon(notAllReadIcon , 'hide-for-all-read');
-        return defaultTopMenuButton($menu, {icon: [iconList]} ).addClass('all-read'); //all-read: Default no new message
+        return defaultTopPanelButton($panel, {icon: [iconList]} ).addClass('all-read'); //all-read: Default no new message
     }
 
     /**********************************************
-    topMenuElementList = list of options for elements in the top menu
-    buttonInfo = options for a button in the top-menu
-        id       : id from options passed to createTopMenu
+    topPanelElementList = list of options for elements in the top panel
+    buttonInfo = options for a button in the top-panel
+        id       : id from options passed to createTopPanel
         rightSide: true/false. - true => the button is placed to the right
         exclude  : true/false - if true the button is not included in calculation of the total width
         title    : null - title for the button
         icon     : null - icon-class for the button
-        create   : function($menu, elementOptions, menuOptions, topMenu) create and return $element. - function to create the button
+        create   : function($panel, elementOptions, panelOptions, topPanel) create and return $element. - function to create the button
     **********************************************/
-    var topMenuElementList = [
+    var topPanelElementList = [
         {
-            id      : 'leftMenu',
+            id      : 'leftPanel',
             priority: 0,
-            create  : createOpenMenuButton
+            create  : createOpenPanelButton
         },
 
         //***************************************************************
         {
             id: 'logo',
-            create: function( $menu/*, elementOptions, menuOptions, topMenu*/ ){
+            create: function( $panel/*, elementOptions, panelOptions, topPanel*/ ){
                 //Owners abbreviation with click to show "About OWNER"
-                return defaultTopMenuButton( $menu, {
+                return defaultTopPanelButton( $panel, {
                         square : false,
                         title  : 'about:owner',
                         onClick: ns.aboutOwner
@@ -116726,7 +117475,7 @@ Create and manage the top-menu for FCOO web applications
 
                 /* With FCOO-logo
                 return $('<a/>')
-                            .addClass( 'icon-fcoo-logo-contrast btn btn-jb standard top-menu-item' )
+                            .addClass( 'icon-fcoo-logo-contrast btn btn-jb standard top-panel-item' )
                             .i18n('about:owner', 'title')
 
                             .on('click', ns.aboutOwner);
@@ -116740,8 +117489,8 @@ Create and manage the top-menu for FCOO web applications
         //Save, load and share
         {
             id      :'save',
-            create  : function( $menu/*, elementOptions, menuOptions*/ ){
-                return defaultTopMenuButton($menu, {
+            create  : function( $panel/*, elementOptions, panelOptions*/ ){
+                return defaultTopPanelButton($panel, {
                     icon    : 'fa-save',
                     title   : {da: 'Gem', en: 'Save'},
                     newGroup: true,
@@ -116752,8 +117501,8 @@ Create and manage the top-menu for FCOO web applications
         },
         {
             id:'load',
-            create  : function( $menu/*, elementOptions, menuOptions*/ ){
-                return defaultTopMenuButton($menu, {
+            create  : function( $panel/*, elementOptions, panelOptions*/ ){
+                return defaultTopPanelButton($panel, {
                     icon    : 'fa-folder-open',
                     title   : {da: 'Hent', en: 'Load' },
                     newGroup: true,
@@ -116764,8 +117513,8 @@ Create and manage the top-menu for FCOO web applications
         },
         {
             id:'share',
-            create  : function( $menu/*, elementOptions, menuOptions*/ ){
-                return defaultTopMenuButton($menu, {
+            create  : function( $panel/*, elementOptions, panelOptions*/ ){
+                return defaultTopPanelButton($panel, {
                     icon    : 'fa-share-alt',
                     title   : {da: 'Del', en: 'Share' },
                     newGroup: true,
@@ -116778,10 +117527,10 @@ Create and manage the top-menu for FCOO web applications
         //***************************************************************
         {
             id: 'header',
-            create: function( $menu, elementOptions, menuOptions/*, topMenu*/ ){
+            create: function( $panel, elementOptions, panelOptions/*, topPanel*/ ){
                 return $('<div/>')
-                           .addClass('text-nowrap top-menu-item top-menu-header')
-                           .i18n( menuOptions );
+                           .addClass('text-nowrap top-panel-item top-panel-header')
+                           .i18n( panelOptions );
             },
             priority: 8,
             minWidth: 200,
@@ -116791,25 +117540,25 @@ Create and manage the top-menu for FCOO web applications
         //***************************************************************
         {
             id: 'search',
-            create: function( $menu, elementOptions, menuOptions, topMenu ){
+            create: function( $panel, elementOptions, panelOptions, topPanel ){
                 var $element =
                     $('<form onsubmit="return false;"/>')
-                        .addClass('form-inline top-menu-item')
-                        .appendTo($menu),
+                        .addClass('form-inline top-panel-item')
+                        .appendTo($panel),
                     $inputGroup =
                         $('<div/>')
                             .addClass('input-group p-0')
                             .appendTo($element);
 
-                topMenu.searchInput =
+                topPanel.searchInput =
 
                     $('<input type="text" class="form-control"></div>')
                         .toggleClass('form-control-sm', !window.bsIsTouch) //TODO - Skal rettes, når form er implementeret i jquery-bootstram
                         .i18n({da:'Søg...', en:'Search...'}, 'placeholder')
                         .appendTo( $inputGroup );
 
-                topMenu.searchButton =
-                    defaultTopMenuButton($menu, { icon: $.FONTAWESOME_PREFIX_STANDARD + ' fa-search' })
+                topPanel.searchButton =
+                    defaultTopPanelButton($panel, { icon: $.FONTAWESOME_PREFIX_STANDARD + ' fa-search' })
                         .appendTo( $inputGroup );
 
                 return $element;
@@ -116824,13 +117573,13 @@ Create and manage the top-menu for FCOO web applications
         //***************************************************************
         {
             id: 'warning',
-            create: function( $menu, elementOptions, menuOptions/*, topMenu*/ ){
+            create: function( $panel, elementOptions, panelOptions/*, topPanel*/ ){
                 //Create yellow warning square by overlaying two icons
                 var iconClass = 'fa-exclamation-square';
-                var $result = messageGroupTopMenuButton($menu, $.FONTAWESOME_PREFIX_STANDARD + ' ' + iconClass, ['fas text-warning ' + iconClass, 'far '+iconClass] );
+                var $result = messageGroupTopPanelButton($panel, $.FONTAWESOME_PREFIX_STANDARD + ' ' + iconClass, ['fas text-warning ' + iconClass, 'far '+iconClass] );
 
                 //Create message-group with warnings
-                ns.createFCOOMessageGroup( 'warning', menuOptions, $result );
+                ns.createFCOOMessageGroup( 'warning', panelOptions, $result );
                 return $result;
             },
             priority : 1,
@@ -116840,10 +117589,10 @@ Create and manage the top-menu for FCOO web applications
         //***************************************************************
         {
             id: 'messages',
-            create: function( $menu, elementOptions, menuOptions ){
-                var $result = messageGroupTopMenuButton($menu, $.FONTAWESOME_PREFIX_STANDARD + ' fa-envelope', 'fas fa-envelope');
+            create: function( $panel, elementOptions, panelOptions ){
+                var $result = messageGroupTopPanelButton($panel, $.FONTAWESOME_PREFIX_STANDARD + ' fa-envelope', 'fas fa-envelope');
                 //Create message-group with info
-                ns.createFCOOMessageGroup( 'info', menuOptions, $result );
+                ns.createFCOOMessageGroup( 'info', panelOptions, $result );
                 return $result;
             },
             priority : 2,
@@ -116853,8 +117602,8 @@ Create and manage the top-menu for FCOO web applications
         //***************************************************************
         {
             id: 'preSetting',
-            create: function( $menu, elementOptions, menuOptions ){
-                return defaultTopMenuButton($menu, menuOptions);
+            create: function( $panel, elementOptions, panelOptions ){
+                return defaultTopPanelButton($panel, panelOptions);
             },
             priority : 2,
             rightSide: true
@@ -116862,8 +117611,8 @@ Create and manage the top-menu for FCOO web applications
         //***************************************************************
         {
             id: 'setting',
-            create: function( $menu/*, elementOptions, menuOptions */){
-                var $result = defaultTopMenuButton($menu, {
+            create: function( $panel/*, elementOptions, panelOptions */){
+                var $result = defaultTopPanelButton($panel, {
                         icon   : $.FONTAWESOME_PREFIX_STANDARD + ' fa-cog',
                         onClick: function(){ ns.globalSetting.edit(); }
                     });
@@ -116875,8 +117624,8 @@ Create and manage the top-menu for FCOO web applications
         //***************************************************************
         {
             id: 'postSetting',
-            create: function( $menu, elementOptions, menuOptions ){
-                return defaultTopMenuButton($menu, menuOptions);
+            create: function( $panel, elementOptions, panelOptions ){
+                return defaultTopPanelButton($panel, panelOptions);
             },
             priority : 2,
             rightSide: true
@@ -116884,11 +117633,11 @@ Create and manage the top-menu for FCOO web applications
         //***************************************************************
         {
             id: 'help',
-            create: function( $menu, elementOptions, menuOptions ){
-                var $result = defaultTopMenuButton($menu, {icon: $.FONTAWESOME_PREFIX_STANDARD + ' fa-question-circle'});
+            create: function( $panel, elementOptions, panelOptions ){
+                var $result = defaultTopPanelButton($panel, {icon: $.FONTAWESOME_PREFIX_STANDARD + ' fa-question-circle'});
 
                 //Create message-group with help
-                ns.createFCOOMessageGroup( 'help', menuOptions, $result );
+                ns.createFCOOMessageGroup( 'help', panelOptions, $result );
                 return $result;
             },
             priority : 4,
@@ -116897,22 +117646,22 @@ Create and manage the top-menu for FCOO web applications
 
         //***************************************************************
         {
-            id       : 'rightMenu',
+            id       : 'rightPanel',
             priority : 0,
             rightSide: true,
-            create   : createOpenMenuButton
+            create   : createOpenPanelButton
         }
 
     ].map( function( options ){
         return $.extend({}, {
             //Default options
-            create          : defaultTopMenuButton,
+            create          : defaultTopPanelButton,
             addToElementList: defaultAddToElementList,
             priority        : 0,
         } ,options);
     });
 
-    var topMenuPrototype = {
+    var topPanelPrototype = {
         /*****************************************************************
         calculateElementSize = function()
         Calculate the total width of the elements for each of the priority
@@ -116948,7 +117697,7 @@ Create and manage the top-menu for FCOO web applications
 
         /*****************************************************************
         onResize = function()
-        Called on topMenu-object when the size of the container is changed
+        Called on topPanel-object when the size of the container is changed
         Recalculate and adjust the number of visible elements
         ******************************************************************/
         onResize: function(){
@@ -116965,19 +117714,19 @@ Create and manage the top-menu for FCOO web applications
             $.each( this.elementList, function(index, elementInfo){
                 var show = (elementInfo.priority <= maxPriority);
                 elementInfo.$element
-                    .toggleClass('top-menu-element-show', show)
-                    .toggleClass('top-menu-element-hide', !show);
+                    .toggleClass('top-panel-element-show', show)
+                    .toggleClass('top-panel-element-hide', !show);
             });
         }
     };
 
     /*****************************************************************
-    createTopMenu = function( options )
-    Create the top menu and return a object with the created element
+    createTopPanel = function( options )
+    Create the top panel and return a object with the created element
     ******************************************************************/
-    ns.createTopMenu = function( options ){
+    ns.createTopPanel = function( options ){
         options = $.extend({}, {
-            leftMenu   : false,
+            leftPanel   : false,
             logo       : true,
             header     : $.extend({}, ns.applicationHeader),
             messages   : null,
@@ -116987,7 +117736,7 @@ Create and manage the top-menu for FCOO web applications
             setting    : true,
             postSetting: false, //or {icon, onClick}
             help       : null,
-            rightMenu  : false
+            rightPanel  : false
         }, options );
 
         //Extend header with ns.applicationBranch (if any)
@@ -116999,7 +117748,7 @@ Create and manage the top-menu for FCOO web applications
         var result = {
                 elementsWidthFound: false
             };
-        $.extend(result, topMenuPrototype);
+        $.extend(result, topPanelPrototype);
 
         /*
         elementList = []{$element, width, priority}
@@ -117009,28 +117758,28 @@ Create and manage the top-menu for FCOO web applications
         */
         var elementList = result.elementList = [];
 
-        //Container for all elements used in top-menu
+        //Container for all elements used in top-panel
         var $container = result.$container =
                 $('<div/>')
-                    .addClass("top-menu-container")
-                    .addClass( $._bsGetSizeClass({baseClass: 'top-menu-container', useTouchSize: true}) );
+                    .addClass("top-panel-container")
+                    .addClass( $._bsGetSizeClass({baseClass: 'top-panel-container', useTouchSize: true}) );
 
-        //Create the menu-bar
-        var $menu = result.$menu = $('<nav/>')
-                .addClass("d-flex justify-content-start align-items-center flex-nowrap top-menu fcoo-app-bg-color fcoo-app-text-color btn-fcoo-app-color")
+        //Create the panel-bar
+        var $panel = result.$panel = $('<nav/>')
+                .addClass("d-flex justify-content-start align-items-center flex-nowrap top-panel fcoo-app-bg-color fcoo-app-text-color btn-fcoo-app-color")
                 .prependTo( $container );
 
-        //Adding buttons etc to the top-menu - Order of buttons/logo are given by topMenuElementList
+        //Adding buttons etc to the top-panel - Order of buttons/logo are given by topPanelElementList
         var firstRightSideFound = false;
-        topMenuElementList.forEach( elementOptions => {
-            let menuOptions = options[elementOptions.id];
-            if (!menuOptions)
+        topPanelElementList.forEach( elementOptions => {
+            let panelOptions = options[elementOptions.id];
+            if (!panelOptions)
                 return true;
 
-            var $element = elementOptions.create( $menu, elementOptions, menuOptions, result );
+            var $element = elementOptions.create( $panel, elementOptions, panelOptions, result );
             if ($element){
                 result[elementOptions.id] = $element;
-                $element.appendTo( $menu );
+                $element.appendTo( $panel );
                 if ((!firstRightSideFound) && elementOptions.rightSide){
                     $element.addClass('right-side');
                     firstRightSideFound = true;
@@ -117048,7 +117797,7 @@ Create and manage the top-menu for FCOO web applications
         onResizeFunc();
 
         return result;
-    }; //end of createTopMenu
+    }; //end of createTopPanel
 }(jQuery, this, document));
 ;
 /****************************************************************************
@@ -117066,7 +117815,7 @@ Is adjusted fork of Touch-Menu-Like-Android (https://github.com/ericktatsui/Touc
 
     var maxMaskOpacity = 0.5; //Equal $modal-backdrop-opacity in \bower_components\bootstrap\scss\_variables.scss
 
-    ns.TouchMenu = function (options) {
+    ns.TouchPanel = ns.TouchMenu = function (options) {
         this._onOpen = [];
         this._onClose = [];
         this.isOpen = false;
@@ -117078,15 +117827,15 @@ Is adjusted fork of Touch-Menu-Like-Android (https://github.com/ericktatsui/Touc
             scrollOptions: null,   //Individuel options for jquery-scroll-container
             modeOver     : false,
             multiMode    : false,
-            menuClassName: '',
+            panelClassName: '',
 
             isOpen       : false,
             sizeList     : [], //List of different size' of content = []SIZEOPTIONS SIZEOPTIONS = {width:NUMBER, modernizr: STRING} modernizr = name of a monernizr-test to be set when the size is set. OR []NUMBER (height/width) OR []STRING (modernizr-test)
             sizeIndex    : -1,
-            onSetSize    : function( /* sizeIndex, menu */ ){},
+            onSetSize    : function( /* sizeIndex, panel */ ){},
 
-            //$menu        : $-element with content (must be inside a <div>), or
-            //content      : object with options to create content using $.fn._bsAddHtml
+            //$content     : $-element with content (must be inside a <div>), or
+            //content      : object with options to create content using $.fn._bsAddHtml, or
             //createContent: function($container) = function to create the content in $container
 
             handleClassName    : '',
@@ -117095,17 +117844,17 @@ Is adjusted fork of Touch-Menu-Like-Android (https://github.com/ericktatsui/Touc
             toggleOnHandleClick: false,
             hideHandleWhenOpen : false,
 
-            $neighbourContainer: null,  //$-container that gets resized when the touch-menu is opened/closed
+            $neighbourContainer: null,  //$-container that gets resized when the touch-panel is opened/closed
 
         }, options || {} );
 
         this.main = this.options.main;
 
-        this.options.verticalMenu    = (this.options.position == 'left') || (this.options.position == 'right');
-        this.options.scroll          = this.options.scroll || (this.options.verticalMenu && !this.options.menuOptions);
+        this.options.verticalPanel    = (this.options.position == 'left') || (this.options.position == 'right');
+        this.options.scroll          = this.options.scroll || (this.options.verticalPanel && !this.options.menuOptions);
         this.options.directionFactor = (this.options.position == 'left') || (this.options.position == 'top') ? 1 : -1;
 
-        if (this.options.verticalMenu){
+        if (this.options.verticalPanel){
             this.options.openDirection  = this.options.position == 'left' ? 'right' : 'left';
             this.options.closeDirection = this.options.position;
         }
@@ -117117,13 +117866,13 @@ Is adjusted fork of Touch-Menu-Like-Android (https://github.com/ericktatsui/Touc
         if (this.options.$neighbourContainer)
             this.options.$neighbourContainer.addClass('neighbour-container');
 
-        //Initialize the menu
+        //Initialize the panel
         this.$container = this.options.$container ? this.options.$container : $('<div/>');
         this.$container
-            .addClass('touch-menu-container')
-            .addClass( $._bsGetSizeClass({baseClass: 'touch-menu-container', useTouchSize: true}) )
+            .addClass('touch-panel-container')
+            .addClass( $._bsGetSizeClass({baseClass: 'touch-panel-container', useTouchSize: true}) )
             .addClass(this.options.position)
-            .addClass(this.options.menuClassName);
+            .addClass(this.options.panelClassName);
 
         //Adjust sizeList (if any)
         if (this.options.sizeList.length){
@@ -117138,63 +117887,63 @@ Is adjusted fork of Touch-Menu-Like-Android (https://github.com/ericktatsui/Touc
                     }
                 sizeOptions.dimention = sizeOptions.dimention || sizeOptions.width || sizeOptions.height || ' ';
             });
-            this.options[ this.options.verticalMenu ? 'width' : 'height' ] = defaultSize;
+            this.options[ this.options.verticalPanel ? 'width' : 'height' ] = defaultSize;
         }
 
         //If the dimention is 'auto' add on-resize event to update width/height
-        if (this.options[ this.options.verticalMenu ? 'width' : 'height' ] == 'auto'){
+        if (this.options[ this.options.verticalPanel ? 'width' : 'height' ] == 'auto'){
             this.$container
-                .addClass(this.options.verticalMenu ? 'vertical-auto-width' : 'horizontal-auto-height')
+                .addClass(this.options.verticalPanel ? 'vertical-auto-width' : 'horizontal-auto-height')
                 .resize( $.proxy( this.onResize, this) );
         }
 
         this.setMode( this.options.modeOver );
 
         //Create container for the contents
-        if (this.options.$preMenu || this.options.inclPreMenu || this.options.preMenuClassName || this.options.$postMenu || this.options.inclPostMenu || this.options.postMenuClassName){
+        if (this.options.$prePanel || this.options.inclPrePanel || this.options.prePanelClassName || this.options.$postPanel || this.options.inclPostPanel || this.options.postPanelClassName){
 
             //Change container to flex-display
             this.$container.addClass('d-flex');
-            this.$container.addClass(this.options.verticalMenu ? 'flex-column' : 'flex-row');
+            this.$container.addClass(this.options.verticalPanel ? 'flex-column' : 'flex-row');
 
-            if (this.options.$preMenu || this.options.inclPreMenu || this.options.preMenuClassName){
-                this.$preMenu = this.options.$preMenu ? this.options.$preMenu : $('<div/>');
-                this.$preMenu
-                    .addClass('touch-pre-menu flex-shrink-0')
-                    .addClass(this.options.preMenuClassName)
+            if (this.options.$prePanel || this.options.inclPrePanel || this.options.prePanelClassName){
+                this.$prePanel = this.options.$prePanel ? this.options.$prePanel : $('<div/>');
+                this.$prePanel
+                    .addClass('touch-pre-panel flex-shrink-0')
+                    .addClass(this.options.prePanelClassName)
                     .appendTo(this.$container);
             }
 
-            var $menuContainer = $('<div/>')
-                .addClass('touch-menu flex-grow-1 flex-shrink-1')
+            var $panelContainer = $('<div/>')
+                .addClass('touch-panel flex-grow-1 flex-shrink-1')
                 .appendTo(this.$container);
 
                 if (this.options.scroll)
-                    this.$menu = $menuContainer.addScrollbar( this.options.scrollOptions );
+                    this.$content = $panelContainer.addScrollbar( this.options.scrollOptions );
                 else
-                    this.$menu = $menuContainer;
+                    this.$content = $panelContainer;
 
             //Create the bottom/right part
-            if (this.options.$postMenu || this.options.inclPostMenu || this.options.postMenuClassName){
-                this.$postMenu = this.options.$postMenu ? this.options.$postMenu : $('<div/>');
-                this.$postMenu
-                    .addClass('touch-post-menu flex-shrink-0')
-                    .addClass(this.options.postMenuClassName)
+            if (this.options.$postPanel || this.options.inclPostPanel || this.options.postPanelClassName){
+                this.$postPanel = this.options.$postPanel ? this.options.$postPanel : $('<div/>');
+                this.$postPanel
+                    .addClass('touch-post-panel flex-shrink-0')
+                    .addClass(this.options.postPanelClassName)
                     .appendTo(this.$container);
             }
         }
         else
-            this.$menu = this.$container;
+            this.$content = this.$container;
 
-        //Move or create any content into the menu
-        if (this.options.$menu)
-            this.options.$menu.contents().detach().appendTo(this.$menu);
+        //Move or create any content into the panel
+        if (this.options.$content || this.options.$menu) //$menu for backward combability
+            (this.options.$content || this.options.$menu).contents().detach().appendTo(this.$content);
         else
             if (this.options.content)
-                this.$menu._bsAddHtml(this.options.content);
+                this.$content._bsAddHtml(this.options.content);
             else
                 if (this.options.createContent)
-                    this.options.createContent(this.$menu);
+                    this.options.createContent(this.$content);
 
 
         if (window.bsIsTouch)
@@ -117215,7 +117964,7 @@ Is adjusted fork of Touch-Menu-Like-Android (https://github.com/ericktatsui/Touc
         if (window.bsIsTouch || this.options.allwaysHandle || this.options.toggleOnHandleClick){
             this.$handle = this.options.$handle ? this.options.$handle : $('<div/>');
             this.$handle
-                .addClass('touch-menu-handle')
+                .addClass('touch-panel-handle')
                 .toggleClass(this.options.position, !!this.options.$handleContainer)
                 .addClass(this.options.handleClassName)
                 .toggleClass('hide-when-open', this.options.hideHandleWhenOpen)
@@ -117223,21 +117972,21 @@ Is adjusted fork of Touch-Menu-Like-Android (https://github.com/ericktatsui/Touc
                 .appendTo(this.options.$handleContainer ? this.options.$handleContainer : this.$container);
 
             if (this.options.$handleContainer)
-                //Add events on handle outside the menu
+                //Add events on handle outside the panel
                 this._add_swiped(this.$handle);
 
             if (this.options.toggleOnHandleClick)
                 this.$handle.on('click', $.proxy(this.toggle, this));
         }
 
-        //Update dimention and size of the menu and handle
+        //Update dimention and size of the panel and handle
         this.updateDimentionAndSize();
 
         //Create the mask
         if (this.options.modeOver || this.options.multiMode) {
             this.$mask =
                 $('<div/>')
-                .addClass('touch-menu-mask')
+                .addClass('touch-panel-mask')
                 .appendTo('body');
 
             if (window.bsIsTouch)
@@ -117252,11 +118001,11 @@ Is adjusted fork of Touch-Menu-Like-Android (https://github.com/ericktatsui/Touc
         //Create the $.bsMenu if menuOptions are given
         if (this.options.menuOptions){
             this.options.menuOptions.resetListPrepend = this.options.resetListPrepend || this.options.menuOptions.resetListPrepend;
-            this.mmenu = ns.createMmenu(this.options.position, this.options.menuOptions, this.$menu);
+            this.mmenu = ns.createMmenu(this.options.position, this.options.menuOptions, this.$content);
         }
 
         //Add the open/close status to appSetting
-        this.settingId = this.options.position + '-menu-open';
+        this.settingId = this.options.position + '-panel-open';
         ns.appSetting.add({
             id          : this.settingId,
             applyFunc   : this._setOpenCloseFromSetting.bind(this),
@@ -117265,7 +118014,7 @@ Is adjusted fork of Touch-Menu-Like-Android (https://github.com/ericktatsui/Touc
         });
 
         //Add the size state to appSetting
-        this.sizeId = this.options.position + '-menu-size';
+        this.sizeId = this.options.position + '-panel-size';
         ns.appSetting.add({
             id          : this.sizeId,
             applyFunc   : this._setSizeIndex.bind(this),
@@ -117283,7 +118032,7 @@ Is adjusted fork of Touch-Menu-Like-Android (https://github.com/ericktatsui/Touc
     /******************************************
     Extend the prototype
     ******************************************/
-    ns.TouchMenu.prototype = {
+    ns.TouchPanel.prototype = ns.TouchMenu.prototype = {
         _add_swiped: function($element){
             this._this_incSize = this._this_incSize || $.proxy(this.incSize,  this);
             this._this_decSize = this._this_decSize || $.proxy(this.decSize, this);
@@ -117298,8 +118047,8 @@ Is adjusted fork of Touch-Menu-Like-Android (https://github.com/ericktatsui/Touc
 
             if (this.doNotCallOnResize) return;
 
-            var dim = this.options.verticalMenu ? this.$container.outerWidth() : this.$container.outerHeight();
-            this.options[this.options.verticalMenu ? 'width' : 'height'] = dim;
+            var dim = this.options.verticalPanel ? this.$container.outerWidth() : this.$container.outerHeight();
+            this.options[this.options.verticalPanel ? 'width' : 'height'] = dim;
 
             this.updateDimentionAndSize();
 
@@ -117310,8 +118059,8 @@ Is adjusted fork of Touch-Menu-Like-Android (https://github.com/ericktatsui/Touc
 
         updateDimentionAndSize: function(){
             var _this = this,
-                cssDimensionId = this.options.verticalMenu ? 'height' : 'width',
-                cssPosId       = this.options.verticalMenu ? 'top'    : 'left',
+                cssDimensionId = this.options.verticalPanel ? 'height' : 'width',
+                cssPosId       = this.options.verticalPanel ? 'top'    : 'left',
                 cssPositionId;
             switch (this.options.position){
                 case 'left'  : cssPositionId = 'right';  break;
@@ -117323,7 +118072,7 @@ Is adjusted fork of Touch-Menu-Like-Android (https://github.com/ericktatsui/Touc
             //*********************************************************************
             function getDimensionAndSize( width, height, defaultSize ){
                 var result =
-                    _this.options.verticalMenu ? {
+                    _this.options.verticalPanel ? {
                         dimension: height || 0,
                         size     : width  || defaultSize
                     } : {
@@ -117335,35 +118084,35 @@ Is adjusted fork of Touch-Menu-Like-Android (https://github.com/ericktatsui/Touc
             }
             //*********************************************************************
             function setElementDimensionAndSize( $elem, options ){
-                //Set width (top/bottom) or height (left/right) of menu and center if not 100%
+                //Set width (top/bottom) or height (left/right) of panel and center if not 100%
                 if (options.dimension)
                     $elem
                         .css(cssDimensionId, options.dimension + 'px')
                         .css(cssPosId, '50%')
-                        .css(_this.options.verticalMenu ? 'margin-top' : 'margin-left', -1*options.halfDimension);
+                        .css(_this.options.verticalPanel ? 'margin-top' : 'margin-left', -1*options.halfDimension);
                 else
                     $elem
                         .css(cssDimensionId, '100%')
                         .css(cssPosId,   '0px');
 
-                $elem.css(_this.options.verticalMenu ? 'width' : 'height', options.size);
+                $elem.css(_this.options.verticalPanel ? 'width' : 'height', options.size);
                 return $elem;
             }
             //*********************************************************************
 
-            this.options.menuDimAndSize   = getDimensionAndSize( this.options.width,       this.options.height,       280 );
+            this.options.panelDimAndSize  = getDimensionAndSize( this.options.width,       this.options.height,       282 );
             this.options.handleDimAndSize = getDimensionAndSize( this.options.handleWidth, this.options.handleHeight,  20 );
 
-            //Update the menu-element
-            this.$container.css(this.options.position, -1*this.options.menuDimAndSize.size + 'px');
+            //Update the panel-element
+            this.$container.css(this.options.position, -1*this.options.panelDimAndSize.size + 'px');
 
-            //Set width (top/bottom) or height (left/right) of menu and center if not 100%
-            setElementDimensionAndSize(this.$container, this.options.menuDimAndSize);
+            //Set width (top/bottom) or height (left/right) of panel and center if not 100%
+            setElementDimensionAndSize(this.$container, this.options.panelDimAndSize);
             if (this.$handle){
                 if (!this.options.$handleContainer)
                     this.$handle.css(cssPositionId, -1 * (this.options.handleOffsetFactor || 1) * this.options.handleDimAndSize.size + 'px');
 
-                //Set width (top/bottom) or height (left/right) of menu and center if not 100%
+                //Set width (top/bottom) or height (left/right) of panel and center if not 100%
                 setElementDimensionAndSize(this.$handle, this.options.handleDimAndSize);
             }
         },
@@ -117395,12 +118144,20 @@ Is adjusted fork of Touch-Menu-Like-Android (https://github.com/ericktatsui/Touc
         },
 
         animateToPosition: function (pos, animateMain, noAnimation) {
+
             this.$container.toggleClass('no-animation', !!noAnimation);
 
-            if (this.options.verticalMenu)
-                this.$container.css('transform', 'translate3d(' + this.options.directionFactor*pos + 'px, 0, 0)');
-            else
-                this.$container.css('transform', 'translate3d(0, ' + this.options.directionFactor*pos + 'px, 0)');
+            let truePos = this.options.directionFactor*pos;
+            if (this.options.verticalPanel){
+                this.$container.css('transform', 'translate3d(' + truePos + 'px, 0, 0)');
+                this.$container.css('width', pos + 'px');
+                this.$container.css(this.options.position, -pos + 'px');
+            }
+            else {
+                this.$container.css('transform', 'translate3d(0, ' + truePos + 'px, 0)');
+                this.$container.css('height', pos + 'px');
+                this.$container.css(this.options.position, -pos + 'px');
+            }
 
             this.changeNeighbourContainerPos(pos, animateMain && !noAnimation);
         },
@@ -117412,8 +118169,8 @@ Is adjusted fork of Touch-Menu-Like-Android (https://github.com/ericktatsui/Touc
                     .css('margin-'+this.options.position, Math.max(0,pos)+'px');
         },
 
-        setMaskOpacity: function (newMenuPos) {
-            this._setMaskOpacity( parseFloat((newMenuPos / this.options.menuDimAndSize.size) * maxMaskOpacity) );
+        setMaskOpacity: function (newPanelPos) {
+            this._setMaskOpacity( parseFloat((newPanelPos / this.options.panelDimAndSize.size) * maxMaskOpacity) );
         },
 
         _setMaskOpacity: function (opacity) {
@@ -117483,10 +118240,10 @@ Is adjusted fork of Touch-Menu-Like-Android (https://github.com/ericktatsui/Touc
             if ((sizeIndex < 0) || (sizeIndex >= this.options.sizeList.length))
                 return this;
 
-            const vertical = this.options.verticalMenu;
+            const vertical = this.options.verticalPanel;
             let originalDim,
                 sizeOptions = this.options.sizeList[sizeIndex],
-                //animateByJS = true if the different sizes of the menu is given by the content instead of direct dimention
+                //animateByJS = true if the different sizes of the panel is given by the content instead of direct dimention
                 animateByJS = (sizeIndex != this.options.sizeIndex) && (sizeOptions.dimention == 'auto') && this.isOpen && false;
 
             this.options.sizeIndex = sizeIndex;
@@ -117549,7 +118306,7 @@ Is adjusted fork of Touch-Menu-Like-Android (https://github.com/ericktatsui/Touc
             this.$container.addClass('opened').removeClass('opening closing closed');
             this._copyClassName();
 
-            this.animateToPosition(this.options.menuDimAndSize.size, true, noAnimation);
+            this.animateToPosition(this.options.panelDimAndSize.size, true, noAnimation);
 
             this.isOpen = true;
 
@@ -117560,7 +118317,7 @@ Is adjusted fork of Touch-Menu-Like-Android (https://github.com/ericktatsui/Touc
                 func(_this);
             });
 
-            window.modernizrOn(this.options.position +'-menu-open');
+            window.modernizrOn(this.options.position +'-panel-open');
 
             this._invoke(this.options.onOpen);
 
@@ -117582,7 +118339,7 @@ Is adjusted fork of Touch-Menu-Like-Android (https://github.com/ericktatsui/Touc
 
             this._onClose.forEach(func => func(this), this);
 
-            window.modernizrOff(this.options.position +'-menu-open');
+            window.modernizrOff(this.options.position +'-panel-open');
 
             this._invoke(this.options.onClose);
 
@@ -117605,8 +118362,8 @@ Is adjusted fork of Touch-Menu-Like-Android (https://github.com/ericktatsui/Touc
         }
     };
 
-    ns.touchMenu = function(options){
-        return new ns.TouchMenu(options);
+    ns.touchPanel = ns.touchMenu = function(options){
+        return new ns.TouchPanel(options);
     };
 
 }(jQuery, this, document));
@@ -119032,12 +119789,12 @@ Methods for loading and saving settings for the application
             ns.globalSetting.set(ns.standardSettingId, code);
 
             let displatEditCode = ns.ss_db2displayFormat(code),
-                settingMenuDiv_da = '<div><i class="fal fa-cog"></i>&nbsp;Indstillinger&nbsp;' + '<i class="fas fa-caret-right"></i></i>&nbsp;<i class="fal ' + ns.standardSettingHeader.icon+'"></i>&nbsp;'+ns.standardSettingHeader.text.da+'</div>',
-                settingMenuDiv_en = '<div><i class="fal fa-cog"></i>&nbsp;Settingsr&nbsp;'+      '<i class="fas fa-caret-right"></i></i>&nbsp;<i class="fal ' + ns.standardSettingHeader.icon+'"></i>&nbsp;'+ns.standardSettingHeader.text.en+'</div>';
+                settingPanelDiv_da = '<div><i class="fal fa-cog"></i>&nbsp;Indstillinger&nbsp;' + '<i class="fas fa-caret-right"></i></i>&nbsp;<i class="fal ' + ns.standardSettingHeader.icon+'"></i>&nbsp;'+ns.standardSettingHeader.text.da+'</div>',
+                settingPanelDiv_en = '<div><i class="fal fa-cog"></i>&nbsp;Settingsr&nbsp;'+      '<i class="fas fa-caret-right"></i></i>&nbsp;<i class="fal ' + ns.standardSettingHeader.icon+'"></i>&nbsp;'+ns.standardSettingHeader.text.en+'</div>';
 
             let noty = window.notyInfo({
-                da: 'Opsætning med id <em>'+displatEditCode+'</em> er angivet som Standard Opsætning, og den bruges om udgangspunkt, når '+ ns.ss_getAppName('da', true)+ ' starter<br>&nbsp;<br>Standard Opsætning kan ændres under<br>' + settingMenuDiv_da,
-                en: 'Setting with <em>'+displatEditCode+'</em> is set as Standard Setting and will be used as default when '+ ns.ss_getAppName('en', true) +' starts<br>&nbsp;<br>Standard Setting can be set under<br>' + settingMenuDiv_en,
+                da: 'Opsætning med id <em>'+displatEditCode+'</em> er angivet som Standard Opsætning, og den bruges om udgangspunkt, når '+ ns.ss_getAppName('da', true)+ ' starter<br>&nbsp;<br>Standard Opsætning kan ændres under<br>' + settingPanelDiv_da,
+                en: 'Setting with <em>'+displatEditCode+'</em> is set as Standard Setting and will be used as default when '+ ns.ss_getAppName('en', true) +' starts<br>&nbsp;<br>Standard Setting can be set under<br>' + settingPanelDiv_en,
             },{
                 layout   : 'center',
                 textAlign: 'center',
@@ -119731,6 +120488,269 @@ Methods for loading and saving settings for the application
   window.Sharer = Sharer;
 })(window, document);
 
+;
+/****************************************************************************
+	fcoo-country-list.js,
+
+	(c) 2024, FCOO
+
+	https://github.com/FCOO/fcoo-country-list
+	https://github.com/FCOO
+
+****************************************************************************/
+
+(function ($, window, document, undefined) {
+	"use strict";
+
+    //Create namespaces
+    var ns = window.fcoo = window.fcoo || {},
+        nsCountry = ns.country = ns.country || {};
+
+    let countryList = nsCountry.list = [
+        { id: 'dk', name: {da: 'Danmark',   en: 'Denmark'       } },
+        { id: 'fo', name: {da: "Færøerne",  en: "Faroe Islands" }, abbr: "FI" },
+        { id: "gl", name: {da: "Grønland",  en: "Greenland"     } },
+
+        { id: 'se', name: {da: 'Sverige',     en: 'Sweden'      } },
+        { id: 'no', name: {da: 'Norge',       en: 'Norway'      } },
+        { id: 'fi', name: {da: 'Finland',     en: 'Finland'     } },
+        { id: 'is', name: {da: 'Island',      en: 'Iceland'     } },
+
+        { id: 'de', name: {da: 'Tyskland',    en: 'Germany'     } },
+        { id: 'pl', name: {da: 'Polen',       en: 'Poland'      } },
+        { id: 'lv', name: {da: 'Letland',     en: 'Latvia'      } },
+        { id: 'lt', name: {da: 'Litauen',     en: 'Lithuania'   } },
+        { id: 'ee', name: {da: 'Estland',     en: 'Estonia'     } },
+        { id: 'ru', name: {da: 'Rusland',     en: 'Russia'      } },
+
+        { id: 'gb', name: {da: 'England',     en: 'England'     } },
+        { id: 'ie', name: {da: 'Irland',      en: 'Ireland'     } },
+
+        { id: 'nl', name: {da: 'Holland',     en: 'Holland'     } },
+        { id: 'be', name: {da: 'Belgien',     en: 'Belgium'     } },
+
+        { id: 'fr', name: {da: 'Frankrig',    en: 'France'      } },
+        { id: 'es', name: {da: 'Spanien',     en: 'Spain'       } },
+        { id: 'pt', name: {da: 'Portugal',    en: 'Portugal'    } },
+
+        { id: 'it', name: {da: 'Italien',     en: 'Italy'       } },
+
+        { id: 'si', name: {da: 'Slovenien',   en: 'Slovenia'    } },
+        { id: 'hr', name: {da: 'Kroatien',    en: 'Croatia'     } },
+        { id: 'me', name: {da: 'Montenegro',  en: 'Montenegro'  } },
+        { id: 'al', name: {da: 'Albanien',    en: 'Albania'     } },
+
+        { id: 'gr', name: {da: 'Grækenland',  en: 'Greece'      } },
+        { id: 'tr', name: {da: 'Tyrkiet',     en: 'Turkey'      } },
+
+        { id: 'mt', name: {da: 'Malta',       en: 'Malta'       } },
+        { id: 'cy', name: {da: 'Cypern',      en: 'Cyprus'      } },
+
+        { id: 'us', name: {da: 'USA',         en: 'USA'         } },
+        { id: 'ca', name: {da: 'Canada',      en: 'Canada'      } },
+
+        { id: 'au', name: {da: 'Australien',  en: 'Australia'   } },
+        { id: 'nz', name: {da: 'New Zealand', en: 'New Zealand' } }
+
+
+    ];
+
+    function Country( options) {
+		this.options = options;
+        this.options.abbr = (this.options.abbr || this.options.id).toUpperCase();
+	}
+
+	//Extend the prototype
+	Country.prototype = {
+
+        flagIcon: function(square){
+            return 'fa fa-flag-'+this.options.id + (square ? ' fa-flag-squared' : '');
+        },
+
+        iconAndText: function(square){
+            return {icon: this.flagIcon(square), text: this.options.name };
+        }
+
+    };
+
+
+    //Global access to individual countries
+    const noCountry = new Country({id: 'UNKNOWN', name: {da:'', en:''}});
+    let countries = nsCountry.countries = {};
+    countryList.forEach( (countryOptions, index) => {
+        let country = new Country(countryOptions);
+        countries[countryOptions.id] = country;
+        countryList[index] = country;
+    });
+
+    const getCountry = nsCountry.getCountry = function(code){ return countries[code.toLowerCase()] || noCountry; };
+    nsCountry.countriesForEach = function( func, exclude = '' ){
+        exclude = Array.isArray(exclude) ? exclude : exclude.split(' ');
+        countryList.forEach( country => {
+            if (!exclude.includes(country.options.id))
+                func(country);
+        });
+    };
+
+
+    nsCountry.getName = nsCountry.getText   = function(code)        { return getCountry(code).options.name;         };
+    nsCountry.getFlagIcon                   = function(code, square){ return getCountry(code).flagIcon(square);     };
+    nsCountry.getIconAndText                = function(code, square){ return getCountry(code).iconAndText(square);  };
+    nsCountry.getAbbr                       = function(code)        { return getCountry(code).options.abbr;         };
+
+
+    /********************************************************************
+    nsCountry.mmenuLinkList(options)
+    Create a list of mmenu-items with links to national/country sites
+    options = {
+        links:  {country-id: STRING} or
+                {country-id: {lang1:STRING, lang2: STRING...} or
+                {country-id: []{prefix: STRING, postfix:STRING, link: STRING or {lang1:link, lang2: link...} }
+
+        exclude: list of countries to exclude even if there are links i links
+
+        parentMenuItem: menu-item or true or false. The parent menu-item. true => default menu-item
+
+        favoritePrefix: prefix to name in favorite
+
+        favoritePostfix: postfix to name in favorite
+}
+    ********************************************************************/
+    let countryListParentMenuItem = {icon: 'fa-globe', text: {da: 'Andre lande', en:'Other countries'}, list: []};
+
+    nsCountry.mmenuLinkList = function( options ){
+        let result, list = [];
+        if (options.parentMenuItem){
+            if (options.parentMenuItem === true)
+                result = $.extend({}, countryListParentMenuItem);
+            else
+                result = options.parentMenuItem;
+
+            result.list = result.list || [];
+            list = result.list;
+        }
+        else
+            result = list;
+
+        nsCountry.countriesForEach(country => {
+            let countryLinks = options.links[country.options.id];
+            if (countryLinks){
+                countryLinks = Array.isArray(countryLinks) ? countryLinks : [countryLinks];
+                countryLinks.forEach(link => {
+                    //Convert link:STRING and link:{da:STRING,...} into {link: STRING or {da:STRING..}}
+                    let linkObj = {};
+                    if (typeof link == 'string')
+                        linkObj.link = link;
+                    else
+                        if (!link.link)
+                            linkObj.link = link;
+                        else
+                            linkObj = link;
+
+                    //Check if link exists
+                    let trueLink = linkObj.link;
+                    let include = false;
+
+                    if ((typeof trueLink == 'string') && !!trueLink)
+                        include = true;
+
+                    if (!include && $.isPlainObject(trueLink))
+                        $.each(trueLink, (id, link) => {
+                            if (link)
+                                include = true;
+                        });
+
+                    if (!include)
+                        return;
+
+                    let name = [];
+                    let favoriteText = [];
+
+                    if (options.favoritePrefix)
+                        favoriteText.push(options.favoritePrefix);
+
+                    if (linkObj.prefix){
+                        name.push(linkObj.prefix);
+                        favoriteText.push(linkObj.prefix);
+                    }
+
+                    name.push(country.options.name);
+                    favoriteText.push(country.options.name);
+
+                    if (linkObj.postfix){
+                        name.push(linkObj.postfix);
+                        favoriteText.push(linkObj.postfix);
+                    }
+
+                    if (options.favoritePostfix)
+                        favoriteText.push(options.favoritePostfix);
+
+
+                    let icon = country.flagIcon(options.square);
+                    list.push({
+                        type        : 'link',
+                        icon        : options.inclLinkIcon ? [$.bsExternalLinkIcon, icon] : icon,
+                        text        : name,
+                        link        : link,
+                        favoriteIcon: options.inclFavoriteLinkIcon ? [$.bsExternalLinkIcon, icon] : icon,
+                        favoriteText: favoriteText
+                    });
+                });
+            }
+        }, options.exclude );
+
+        return result;
+    };
+
+
+    /********************************************************************
+    nsCountry.addMenuLinkList(fileNameOrData, options )
+    A method to load a list of links to different countries and add the menu-items
+
+    The format for data must be
+     {
+        description: STRING, //optional
+        links: {
+            COUNTRY_CODE: {LANG: STRING} or
+            COUNTRY_CODE: STRING //Only one page
+        }
+    }
+
+    options are as options in mmenuLinkList (without links)
+
+    Return a menu-item that can be added to the menu
+
+    ********************************************************************/
+    nsCountry.addMenuLinkList = function( fileNameOrData, options ){
+
+        let menuItem = $.extend({}, countryListParentMenuItem);
+
+        //Is fileNameOrData data or fileName
+        let data, fileName;
+        if ($.isPlainObject(fileNameOrData) && (fileNameOrData.links !== undefined))
+            data = fileNameOrData;
+        else
+           fileName = fileNameOrData;
+
+        ns.promiseList.append({
+            data    : data,
+            fileName: fileName,
+            resolve : function(options = {}, menuItem, data){
+                menuItem.list = nsCountry.mmenuLinkList( $.extend({}, options, {links: data.links}) );
+            }.bind(null, options, menuItem),
+            wait    : true,
+        });
+
+        return menuItem;
+    };
+
+
+
+
+
+
+
+}(jQuery, this, document));
 ;
 /**
  *
@@ -135703,7 +136723,7 @@ Options for selectiong position-format and to activate context-menu
             tooltipDirection: 'top',
 
             content     : {
-                semiTransparent    : false,
+                //semiTransparent    : false,
                 clickable          : true,
                 noHeader           : true,
                 noVerticalPadding  : true,
@@ -135815,10 +136835,10 @@ Options for selectiong position-format and to activate context-menu
             var cursorOptions = {
                     insideFormGroup  : true,
                     noValidation     : true,
-                    noBorder         : true,
+                    noBorder         : false, //true,
                     noVerticalPadding: true,
                     noPadding        : true,
-                    type             : 'textbox',
+                    type             : 'text', //'textbox',
 
                     text           : function( $inner ){ $inner.addClass('cursor'); },
                     class          :'show-for-control-position-cursor',
@@ -135826,13 +136846,13 @@ Options for selectiong position-format and to activate context-menu
                         type  : 'button',
                         square: true,
                         icon  : iconCursorPosition,
-                        transparent: true,
+                        //transparent: true,
                     },
                     after: !this.options.inclContextmenu ? null : {
                         type  :'button',
                         square: true,
                         icon  : L.BsControl.prototype.options.rightClickIcon,
-                        transparent: true,
+                        //transparent: true,
                         onClick: function(){
                             window.notyInfo(
                                 { icon: L.BsControl.prototype.options.rightClickIcon,
@@ -135928,6 +136948,7 @@ Options for selectiong position-format and to activate context-menu
 
                 if (_this.options.inclContextmenu)
                     options.after = options.after || {};
+                
                 return options;
             }
 
@@ -136338,7 +137359,7 @@ Options for selectiong position-format and to activate context-menu
                     text   : '',
                     square : true,
                     class  : 'disabled show-as-normal',
-                    semiTransparent: true
+                    //semiTransparent: true,
                 },
                 after: {
                     type   : 'button',
@@ -136346,7 +137367,7 @@ Options for selectiong position-format and to activate context-menu
                     text   : '',
                     square : true,
                     class  : 'disabled show-as-normal',
-                    semiTransparent: true
+                    //semiTransparent: true,
                 }
             };
 
@@ -139138,11 +140159,12 @@ ctx.fillRect(0, 0, shapeDim, shapeDim);
             LineColorName  : '',  //Same as borderColorName
 
 
-            //fill       : false,  //True to add fill colored by fillColor or SOMETHING ELSE TODO
-            border         : false,  //True to add a semi-transparent white border to the line
-            transparent    : false,  //True to make the line semi-transparent
-            hover          : false,  //True to show big-shadow and 0.9 opacuity for lpl-transparent when hover
-            onlyShowOnHover: false,  //When true the polyline/polygon is only visible on hover and popup-open. Need {shadow: false, hover: true}
+          //fill            : false,  //True to add fill colored by fillColor or SOMETHING ELSE TODO
+            border          : false,  //True to add a semi-transparent white border to the line
+            transparent     : false,  //True to make the line and fill semi-transparent
+            extraTransparent: false,  //True to make the line and fill almost full -transparent
+            hover           : false,  //True to show big-shadow and 0.9 opacuity for lpl-transparent when hover
+            onlyShowOnHover : false,  //When true the polyline/polygon is only visible on hover and popup-open. Need {shadow: false, hover: true}
 
             shadow               : false,  //true to add big shadow to the line
             shadowWhenInteractive: false,  //When true a shadow is shown when the polyline is interactive
@@ -139182,7 +140204,7 @@ ctx.fillRect(0, 0, shapeDim, shapeDim);
                             interactive   : interactive,
                         });
                     result.className = baseClassName + ' ' + (this.options.className || '');
-                    return result;                
+                    return result;
                 }.bind(this);
 
                 options = options || {};
@@ -139269,7 +140291,9 @@ ctx.fillRect(0, 0, shapeDim, shapeDim);
                 this._addClass(thisIndex, (options.baseClassName || '') + ' ' + (options.className || ''));
                 this.setColor(options.colorName);
                 this.setBorderColor(options.borderColorName);
-                this._toggleClass(thisIndex, 'lpl-transparent', !!options.transparent);
+                this._toggleClass(thisIndex, 'lpl-any-transparent',   !!options.transparent || !!options.extraTransparent);
+                this._toggleClass(thisIndex, 'lpl-transparent',       !!options.transparent && !options.extraTransparent);
+                this._toggleClass(thisIndex, 'lpl-extra-transparent', !!options.extraTransparent);
 
                 //Show or hide border
                 this.setBorder( options.border );
@@ -143171,6 +144195,8 @@ NAME  col#1  col#2  col#3  col#4  col#5
 
 
 ;
+/* global define, module, require, window */
+
 (function (factory, window) {
   // define an AMD module that relies on 'leaflet'
   if (typeof define === 'function' && define.amd) {
@@ -143824,7 +144850,7 @@ The default options are an extended version of the defalut application options f
     Extend ns.defaultApplicationOptions with default options for map-application
     ****************************************************************************/
     ns.defaultApplicationOptions = $.extend(true, ns.defaultApplicationOptions, {
-        topMenu: {
+        topPanel: {
             search   : true,                                    //true if use search
             nominatim: 'https://nominatim.openstreetmap.org',   //Path to OpenStreetMap Nominatin-service
 
@@ -143856,7 +144882,7 @@ The default options are an extended version of the defalut application options f
             setting: false,
         },
 
-        standardMenuOptions: {
+        standardPanelOptions: {
             inclBar     : true,
             barCloseAll : true,
 
@@ -143868,8 +144894,8 @@ The default options are an extended version of the defalut application options f
             }
         },
 
-        leftMenu: {
-            width  : 359,   //Width of left-menu. Supports mobil device with screen width = 360+
+        leftPanel: {
+            width  : 359,   //Width of left-panel. Supports mobil device with screen width = 360+
             buttons: {
                 reset  : true,
                 setting: true
@@ -143879,7 +144905,7 @@ The default options are an extended version of the defalut application options f
                 adjustIcon: adjustMenuItemIcon
             },
         },
-        leftMenuIcon: 'fa-layer-group',
+        leftPanelIcon: 'fa-layer-group',
 
         //Default map
         map: {
@@ -144824,7 +145850,7 @@ dataset.js
     /****************************************************************************
     To create an application call window.fcoo.map.createApplication(options, fileNameOrMenuOptions)
     options                = OPTIONS or FILENAME = filename with OPTIONS
-    fileNameOrMenuOptions  = MENU-OPTIONS or FILENAME with menu-options. Default = FCOO Standard menu (see fcoo-applicaion)
+    fileNameOrMenuOptions  = MENU_ITEM_LIST or FILENAME with menu-item-list. Default = FCOO Standard menu (see fcoo-applicaion)
 
     FILENAME = Path to file. Two versions:
         1: Relative path locally e.q. "data/info.json"
@@ -144970,7 +145996,7 @@ dataset.js
 
 
         //Do not create MapLayer with search-results if search is not pressent AND only include search if MapLayer with is included
-        if (!options.topMenu.search)
+        if (!options.topPanel.search)
             delete nsMap.createMapLayer[nsMap.searchMapLayerId];
     }
 
@@ -144991,25 +146017,25 @@ dataset.js
             }
         }
 
-        if (nsMap.setupOptions.standardMenuId)
-            link( nsMap.main[nsMap.setupOptions.standardMenuId].mmenu );
+        if (nsMap.setupOptions.menuPanelId)
+            link( nsMap.main[nsMap.setupOptions.menuPanelId].mmenu );
 
         //Update search-button
-        if (setupOptions.topMenu.search){
-            var topMenuSearchInput = nsMap.main.topMenuObject.searchInput,
+        if (setupOptions.topPanel.search){
+            var topPanelSearchInput = nsMap.main.topPanelObject.searchInput,
                 submitSearch = function(){
-                    topMenuSearchInput.select().focus();
-                    nsMap.search( topMenuSearchInput.val() );
+                    topPanelSearchInput.select().focus();
+                    nsMap.search( topPanelSearchInput.val() );
                 },
                 clickSearch = function(){
                     //If search-input is hidden => show search-input-modal else click == submit
-                    if (topMenuSearchInput.hasClass('top-menu-element-hide'))
+                    if (topPanelSearchInput.hasClass('top-panel-element-hide'))
                         nsMap.search( null );
                     else
                         submitSearch();
                 };
-            nsMap.main.topMenuObject.search.on('submit', submitSearch );
-            nsMap.main.topMenuObject.searchButton.on('click', clickSearch );
+            nsMap.main.topPanelObject.search.on('submit', submitSearch );
+            nsMap.main.topPanelObject.searchButton.on('click', clickSearch );
         }
 
         //Set min- and max-zoom for main-map
@@ -145186,7 +146212,7 @@ global-events.js
 
 ;
 /****************************************************************************
-L.Control.bsToggleBottomMenu.js
+L.Control.bsToggleBottomPanel.js
 ****************************************************************************/
 (function ($, L, window/*, document, undefined*/) {
     "use strict";
@@ -145194,27 +146220,27 @@ L.Control.bsToggleBottomMenu.js
     var ns = window.fcoo = window.fcoo || {},
         nsMap = ns.map = ns.map || {};
 
-        L.Control.BsToggleBottomMenu = L.Control.BsButton.extend({
+        L.Control.BsToggleBottomPanel = L.Control.BsButton.extend({
             options: {
                 bigIcon     : true,
-                icon        : ['far fa-circle-chevron-up hide-for-bottom-menu-open fa-no-margin', 'far fa-circle-chevron-down show-for-bottom-menu-open'],
+                icon        : ['far fa-circle-chevron-up hide-for-bottom-panel-open fa-no-margin', 'far fa-circle-chevron-down show-for-bottom-panel-open'],
                 position    : 'bottomcenter',
                 transparent : true,
                 //semiTransparent : true,
-                onClick     : function(){ nsMap.main.bottomMenu.toggle(); }
+                onClick     : function(){ nsMap.main.bottomPanel.toggle(); }
             }
         });
 
     //Install L.Control.BsCompass
     L.Map.mergeOptions({
-        bsToggleBottomMenuControl: false,
-        bsToggleBottomMenuOptions: {}
+        bsToggleBottomPanelControl: false,
+        bsToggleBottomPanelOptions: {}
     });
 
     L.Map.addInitHook(function () {
-        if (this.options.bsToggleBottomMenuControl){
-            this.bsToggleBottomMenuControl = new L.Control.BsToggleBottomMenu( this.options.bsToggleBottomMenuOptions );
-            this.addControl(this.bsToggleBottomMenuControl);
+        if (this.options.bsToggleBottomPanelControl){
+            this.bsToggleBottomPanelControl = new L.Control.BsToggleBottomPanel( this.options.bsToggleBottomPanelOptions );
+            this.addControl(this.bsToggleBottomPanelControl);
         }
     });
 
@@ -145649,7 +146675,7 @@ that includes current position, and use this other map to get the color
         bbox=-626172.1357121639,8766409.899970293,0,9392582.035682464
 
 
-    https://wms02.fcoo.dk/webmap/v2/data/DMI/HARMONIE/DMI_NEA_MAPS_v005C.nc.wms?
+    https://wms02.fcoo.dk/webmap/v3/data/DMI/HARMONIE/DMI_NEA_MAPS_v005C.nc.wms?
         service=WMS&
         request=GetMap&
         version=1.3.0&
@@ -145694,7 +146720,7 @@ that includes current position, and use this other map to get the color
             staticOptions: {
                 version: '1.1.1'
             },
-            dynamicUrl: "{protocol}//{s}.fcoo.dk/webmap/v2/data/{dataset}.wms",
+            dynamicUrl: "{protocol}//{s}.fcoo.dk/webmap/v3/data/{dataset}.wms",
             dynamicOptions: {
                 updateInterval: 50,
                 transparent   : 'TRUE',
@@ -145772,6 +146798,12 @@ that includes current position, and use this other map to get the color
         service         : STRING ("WMS")
         request         : STRING ("GetMap")
         layers          : STRING,
+
+        dataset     : STRING,
+        styles      : STRING, OBJECT or ARRAY
+        cmap        : STRING,
+
+
         zIndex          : NUMBER
         deltaZIndex     : NUMBER (optional)
         minZoom         : NUMBER (optional)
@@ -145788,6 +146820,9 @@ that includes current position, and use this other map to get the color
                         request         : "GetMap",
                     }, defaultOptions, options );
 
+
+        url              = options.url || url;
+        LayerConstructor = options.LayerConstructor || LayerConstructor;
 
         //Convert layers: []STRING => STRING,STRING and styles = {ID: VALUE} => ID:VALUE;ID:VALUE
         function convertToStr(id, separator){
@@ -145815,19 +146850,22 @@ that includes current position, and use this other map to get the color
 
 
     /***********************************************************
-    layer_static - Creates a L.TileLayer.WMS (layer_wms) with options for static layers
+    layer_wms_static - Creates a L.TileLayer.WMS (layer_wms) with options for static layers
+    Also as layer_static for backward combability
     ***********************************************************/
-    nsMap.layer_static = function(options, map, defaultOptions = nsMap.wmsStatic.options, url = nsMap.wmsStatic.url, LayerConstructor){
+    nsMap.layer_wms_static = nsMap.layer_static = function(options, map, defaultOptions = nsMap.wmsStatic.options, url = nsMap.wmsStatic.url, LayerConstructor){
         return nsMap.layer_wms(options, map, defaultOptions, url, LayerConstructor);
     };
 
 
     /***********************************************************
-    layer_dynamic - Creates a L.TileLayer.WMS (layer_wms) with options for dynamic layers
+    layer_wms_dynamic - Creates a L.TileLayer.WMS (layer_wms) with options for dynamic layers
+    Also as layer_dynamic for backward combability
     ***********************************************************/
-    nsMap.layer_dynamic = function(options, map, defaultOptions = nsMap.wmsDynamic.options, url = nsMap.wmsDynamic.url, LayerConstructor){
+    nsMap.layer_wms_dynamic = nsMap.layer_dynamic = function(options, map, defaultOptions = nsMap.wmsDynamic.options, url = nsMap.wmsDynamic.url, LayerConstructor){
         //Adjust url to include eq. dataset
         url = adjustString(url, options);
+
 
         return nsMap.layer_wms(options, map, defaultOptions, url, LayerConstructor);
     };
@@ -146498,9 +147536,17 @@ Global context-menu for all maps
 
 
 
-
+    //Selct layer
     map_contextmenu_itemList.push({
-        //Map-setting
+        icon       : 'fa-layer-group',
+        text       : {da:'Vælg lag...', en:'Select layers...'},
+        spaceBefore: true,
+        onClick    : (id, latlng, $button, map) => nsMap.selectLayerInModal(map)
+    });
+
+    
+    //Map setting
+    map_contextmenu_itemList.push({
         icon       : ns.icons.mapSettingSingle,
         text       : ns.texts.mapSettingSingle,
         spaceBefore: true,
@@ -146510,6 +147556,7 @@ Global context-menu for all maps
                 nsMap.editMapSetting(map.fcooMapIndex);
         }
     });
+
 
 
     L.Map.addInitHook(function () {
@@ -146563,11 +147610,11 @@ options = {
         useLegendButtonList: BOOLEAN, if true and menuOptions.buttonList is not given => use legendOptions.buttonList as in menu
 
         showAllways        : BOOLOAN. When true the buttons are visible even when the layer is not visible in any maps. Can also be set directly in buttonOptions
-        buttonListMode     : {button-id: MODE} or MODE. When useLegendButtonList = true => 
+        buttonListMode     : {button-id: MODE} or MODE. When useLegendButtonList = true =>
                                 buttonListMode[id]/buttonListMode = "allMaps", "selectedMaps", "mainMap", or "noMaps" (default)
                                 The mode sets witch maps to be called with the onClick-method for the legend-button-list
                                 The mode can also be set direct in the options for the button in buttonList as options.menuButtonMode
-        
+
     },
 
     //Legend
@@ -146808,12 +147855,12 @@ L.Layer.addInitHook(function(){
 
         this.info = []; //[] of {map, layer, legend, infoBox, colorInfoLayer, loading, timeout, updateColorInfoOnWorkingOff, dataset}
 
-        this.showAndHideClasses = '';
-        this.inversShowAndHideClasses = '';
+        this.showAndHideClasses = 'show-for-layer-visible';
+        this.inversShowAndHideClasses = 'hide-for-layer-visible';
         var minZoom = this.options.minZoom || this.options.layerOptions.minZoom || 0;
         if (minZoom){
-            this.showAndHideClasses       = 'show-for-leaflet-zoom-'+minZoom+'-up';
-            this.inversShowAndHideClasses = 'hide-for-leaflet-zoom-'+minZoom+'-up';
+            this.showAndHideClasses       += ' show-for-leaflet-zoom-'+minZoom+'-up';
+            this.inversShowAndHideClasses += ' hide-for-leaflet-zoom-'+minZoom+'-up';
         }
 
         var maxZoom = this.options.maxZoom || this.options.layerOptions.maxZoom || 0;
@@ -146834,6 +147881,64 @@ L.Layer.addInitHook(function(){
     nsMap.MapLayer = MapLayer;
 
     nsMap.MapLayer.prototype = {
+
+        /*********************************************************
+        getInfo: function(mapOrMapIndexOrMapId)
+        Return the info-record for the given map
+        *********************************************************/
+        getInfo: function(mapOrMapIndexOrMapId){
+            let map = nsMap.getMap(mapOrMapIndexOrMapId),
+                index = map ? map.fcooMapIndex : null;
+
+            return index === null ? null : this.info[index];
+        },
+
+
+        /*********************************************************
+        isInvisible: function(mapOrMapIndexOrMapId)
+        Return true if the layer is hidden in the given map
+        *********************************************************/
+        isInvisible: function(mapOrMapIndexOrMapId){
+            let info = this.getInfo(mapOrMapIndexOrMapId);
+            return info && info.isInvisible;
+        },
+
+        /*********************************************************
+        visible, invisible, toggleVisibility: Hide/show the layer in the given map
+        *********************************************************/
+        visible  : function(mapOrMapIndexOrMapId){ return this.toggleVisibility(mapOrMapIndexOrMapId, true);  },
+        invisible: function(mapOrMapIndexOrMapId){ return this.toggleVisibility(mapOrMapIndexOrMapId, false);  },
+        toggleVisibility: function(mapOrMapIndexOrMapId, visible){
+            function set(layer){
+                if (!layer)
+                    return;
+
+                if (layer.setOpacity)
+                    layer.setOpacity(visible ? 1 : 0);
+
+                if (layer.getElement)
+                    $(layer.getElement()).toggle(visible);
+
+                if (layer.eachLayer)
+                    layer.eachLayer( set );
+            }
+
+            let info = this.getInfo(mapOrMapIndexOrMapId);
+            if (info){
+                visible = typeof visible == 'boolean' ? visible : !!info.isInvisible;
+
+                if (!!info.isInvisible == !!visible){
+                    info.isInvisible = !visible;
+
+                    set(info.layer);
+
+                    info.legend.$modalContent.modernizrToggle('layer-visible', visible);
+
+                    this._saveSetting();
+                }
+            }
+        },
+
         /*********************************************************
         isAddedTo(mapOrIndex) - return true if the MapLayer is added to the map
         *********************************************************/
@@ -146867,7 +147972,10 @@ L.Layer.addInitHook(function(){
                 else
                     this.removeFrom(map);
 
-                //colorInfo - TODO
+                if (setting.isInvisible)
+                    this.invisible(mapIndex);
+
+                //colorInfo - @TODO
 
                 //Individual setting
                 this.applySetting(setting, map, this.info[mapIndex], mapIndex);
@@ -146893,8 +148001,9 @@ L.Layer.addInitHook(function(){
             $.each(this.info, function(index, info){
                 data[index] =
                     $.extend({
-                        show: this.isAddedToMap(index)
-                        //colorInfo - TODO
+                        show       : this.isAddedToMap(index),
+                        isInvisible: info ? info.isInvisible : false,
+                        //colorInfo - @TODO
                     },
                         this.saveSetting(info ? info.map : null, info, index) || {}
                     );
@@ -146921,7 +148030,6 @@ L.Layer.addInitHook(function(){
 
             var info = this.info[mapIndex] = {};
             info.map = map;
-
 
             //Create dataset
             if (this.options.dataset && !info.dataset){
@@ -146965,7 +148073,7 @@ L.Layer.addInitHook(function(){
                     }
 
                     legendOptions = $.extend(true, {}, {
-                        index       : parseInt(indexAsStr), 
+                        index       : parseInt(indexAsStr),
                         icon        : this.options.legendIcon || this.options.icon,
                         iconClass   : this.options.legendIconClass || this.options.iconClass || null,
                         text        : this.options.legendText || this.options.text || null,
@@ -147096,8 +148204,9 @@ L.Layer.addInitHook(function(){
                         info.dataset ? info.dataset.data || {} : {}
                     );
 
-                info.layer = this.createLayer(newLayerOptions, map);
+                info.layer = this._createLayer(newLayerOptions, map);
                 info.layer.fcooMapIndex = map.fcooMapIndex; //Prevent the index when the layer is removed => layer._map is set to null
+                info.layer.mapLayer = this;
 
                 //Sets options._popupContainerClass = this.showAndHideClasses to hide open popups when the layer is hidden and visa versa
                 info.layer.options._popupContainerClass = this.showAndHideClasses;
@@ -147106,7 +148215,6 @@ L.Layer.addInitHook(function(){
 
             //Add map to list and layer(s) to map
             layer.addTo(map);
-
             if ( this.hasColorInfo && !info.colorInfoLayer ){
                 this.hasColorInfo = false;
                 //Get the tileLayer used for colorInfo (if any)
@@ -147157,7 +148265,13 @@ L.Layer.addInitHook(function(){
             if (this.options.onAdd)
                 this.options.onAdd(map, layer);
 
+
+            if (info.isInvisible)
+                this.invisible(map);
+
+
             this._saveSetting();
+
 
             return this;
         },
@@ -147356,7 +148470,6 @@ L.Layer.addInitHook(function(){
 
             var info  = this.info[mapIndex];
 
-
             //Remove legned (if any) and use legend.onRemove to do the removing
             if (!this.wasRemovedViaLegend && map.bsLegendControl){
                 map.bsLegendControl.removeLegend(info.legend);
@@ -147484,6 +148597,15 @@ L.Layer.addInitHook(function(){
 
 
         /*********************************************************
+        _createLayer: function(layerOptions, map)
+        Simple calls createLayer.
+        Can be overwriten by different types of MapLayer
+        *********************************************************/
+        _createLayer: function(/*layerOptions, map*/){
+            return this.createLayer.apply(this, arguments);
+        },
+
+        /*********************************************************
         createLayer: function(layerOptions, map)
         Set by the different types of MapLayer
         *********************************************************/
@@ -147543,45 +148665,45 @@ L.Layer.addInitHook(function(){
                 let menuButtonList = [];
                 legendOptions.buttonList.forEach( (buttonOptions, index) => {
                     let menuButtonOptions = $.extend(true, {}, buttonOptions );
-                    
+
                     menuButtonOptions.legendOnClick = menuButtonOptions.onClick;
                     menuButtonOptions.onClick = this._menuButton_onClick.bind(this, index);
-                    
+
                     menuButtonList.push(menuButtonOptions);
-                });                    
+                });
                 result.buttonList = menuButtonList;
-            }            
-            
+            }
+
             if (result.buttonList){
                 //Add class to buttons to control if the button is enabled/disabled when the layer is visible in any maps
                 result.buttonList.forEach( buttonOptions => {
-                    const showAllways = typeof buttonOptions.showAllways !== undefined ? buttonOptions.showAllways : menuOptions.showAllways;
-                    buttonOptions.class = (buttonOptions.class || '') + (showAllways ? '' : ' disabled-when-no-selected'); 
-                }); 
+                    const showAllways = buttonOptions.showAllways !== undefined ? buttonOptions.showAllways : menuOptions.showAllways;
+                    buttonOptions.class = (buttonOptions.class || '') + (showAllways ? '' : ' disabled-when-no-selected');
+                });
             }
-            
+
             return result;
         },
 
         _menuButton_onClick: function(buttonIndex, id, selected, $button/*, map*/){
-            const buttonOptions = this.options && this.options.legendOptions && this.options.legendOptions.buttonList ? this.options.legendOptions.buttonList[buttonIndex] : null;            
-            
-            if (!buttonOptions) 
+            const buttonOptions = this.options && this.options.legendOptions && this.options.legendOptions.buttonList ? this.options.legendOptions.buttonList[buttonIndex] : null;
+
+            if (!buttonOptions)
                 return this;
-                
+
             /*
             buttonListMode: {button-id: MODE}. When useLegendButtonList = true => buttonListMode[id] = "allMaps", "selectedMaps", "mainMap", or "noMaps" (default)
                                                The mode sets witch maps to be called with the onClick-method for the legend-button-list
                                             The mode can also be set direct in the options for the button in buttonList as options.menuButtonMode
-            */                                            
+            */
             const menuOptions = this.options.menuOptions;
 
             let mode = buttonOptions.menuButtonMode;
-            
+
             if (!mode && menuOptions.buttonListMode);
                 mode = Array.isArray(menuOptions.buttonListMode) ? menuOptions.buttonListMode[buttonIndex] : menuOptions.buttonListMode;
             mode = mode || "noMaps";
-            
+
             let mapList = [];
             switch (mode.toUpperCase()){
                 case "ALLMAPS"      :   nsMap.visitAllVisibleMaps( map => mapList.push(map) ); break;
@@ -147594,7 +148716,7 @@ L.Layer.addInitHook(function(){
             mapList.forEach( map => onClick(id, selected, $button, map) );
 
             return this;
-        },                
+        },
 
 
         /******************************************************************
@@ -147626,12 +148748,12 @@ L.Layer.addInitHook(function(){
                 this.menuItem.setState(!!this.isAddedToMap(0));
                 notAdded = !this.isAddedToMap(0);
             }
-            
+
             this.menuItem.$li.toggleClass('not-shown-in-any-maps', !!notAdded);
             this.menuItem.$li.find('.disabled-when-no-selected').toggleClass('disabled', !!notAdded);
             if (this.menuItem.favoriteItem && this.menuItem.favoriteItem.$li)
                 this.menuItem.favoriteItem.$li.find('.disabled-when-no-selected').toggleClass('disabled', !!notAdded);
-            
+
         },
 
         /******************************************************************
@@ -147719,7 +148841,7 @@ layer_wms.js
 Classes to creraet static and dynamic WMS-layers
 
 ****************************************************************************/
-(function ($, L, window/*, document, undefined*/) {
+(function ($, L, window, document, undefined) {
     "use strict";
 
     //Create namespaces
@@ -147733,20 +148855,33 @@ Classes to creraet static and dynamic WMS-layers
         text,
         static      : BOOLEAN
         creatLayer  : FUNCTION - Create the Leaflet-layer
-        layerOptions: OBJECT
-        layers      : STRING,
+        layerOptions: {
+            service     : STRING ("WMS")            (1)
+            request     : STRING ("GetMap")         (1)
+            dataset     : STRING,                   (1)
+            layers      : STRING, OBJECT or ARRAY   (1)
+            styles      : STRING, OBJECT or ARRAY   (1)
+            cmap        : STRING,                   (1)
+            LayerConstructor                        (1)
+            etc.
+        }
+
         zIndex      : NUMBER
         deltaZIndex : NUMBER (optional)
         minZoom     : NUMBER (optional)
         maxZoom     : NUMBER (optional)
     }
+    (1) Can for convenience also be set direct in options
     ***********************************************************/
     function MapLayer_wms(options) {
-        //Move options regarding tileLayer into layerOptions
+        //Move options regarding tileLayer into layerOptions (if any)
         options.layerOptions = options.layerOptions || {};
-        ['layers', 'zIndex', 'deltaZIndex', 'minZoom', 'maxZoom', 'LayerConstructor'].forEach( id => {
-            options.layerOptions[id] = options[id];
-            delete options[id];
+
+        ['service', 'request', 'dataset', 'layers', 'styles', 'cmap', 'zIndex', 'deltaZIndex', 'minZoom', 'maxZoom', 'LayerConstructor'].forEach( id => {
+            if (options[id] !== undefined){
+                options.layerOptions[id] = options.layerOptions[id] || options[id];
+                delete options[id];
+            }
         });
         nsMap.MapLayer.call(this, options);
     }
@@ -147756,28 +148891,29 @@ Classes to creraet static and dynamic WMS-layers
     MapLayer_wms.prototype.createLayer = nsMap.layer_wms;
 
     /***********************************************************
-    MapLayer_static - Creates a MapLayer with static WMS-layer
-    options = {
-        icon,
-        text,
-        layers     : STRING,
-        zIndex     : NUMBER
-        deltaZIndex: NUMBER (optional)
-        minZoom    : NUMBER (optional)
-        maxZoom    : NUMBER (optional)
-    }
+    MapLayer_wms_static - Creates a MapLayer with static WMS-layer
+    Also as MapLayer_static for backward combability
     ***********************************************************/
-    function MapLayer_static(options) {
+    function MapLayer_wms_static(options) {
         nsMap.MapLayer_wms.call(this, options);
     }
-    nsMap.MapLayer_static = MapLayer_static;
+    nsMap.MapLayer_wms_static = nsMap.MapLayer_static = MapLayer_wms_static;
 
-    MapLayer_static.prototype = Object.create(nsMap.MapLayer_wms.prototype);
-    MapLayer_static.prototype.createLayer = nsMap.layer_static;
-
-
+    MapLayer_wms_static.prototype = Object.create(nsMap.MapLayer_wms.prototype);
+    MapLayer_wms_static.prototype.createLayer = nsMap.layer_wms_static;
 
 
+    /***********************************************************
+    MapLayer_wms_dynamic - Creates a MapLayer with dynamic WMS-layer
+    Also as MapLayer_dynamic for backward combability
+    ***********************************************************/
+    function MapLayer_wms_dynamic(options) {
+        nsMap.MapLayer_wms.call(this, options);
+    }
+    nsMap.MapLayer_wms_dynamic = nsMap.MapLayer_dynamic = MapLayer_wms_dynamic;
+
+    MapLayer_wms_dynamic.prototype = Object.create(nsMap.MapLayer_wms.prototype);
+    MapLayer_wms_dynamic.prototype.createLayer = nsMap.layer_wms_dynamic;
 
 }(jQuery, L, this, document));
 
@@ -148017,6 +149153,89 @@ coast-lines, and name of cites and places
             this.addControl(this.backgroundLayerControl);
         }
     });
+
+}(jQuery, L, this, document));
+
+;
+/****************************************************************************
+map-layer-mmenu
+
+Objects and methods to show a modal with select of layer for one map
+****************************************************************************/
+(function ($, L, window/*, document, undefined*/) {
+    "use strict";
+
+    let ns = window.fcoo = window.fcoo || {},
+        nsMap = ns.map = ns.map || {};
+
+
+    function map_reset(){
+        $.each(nsMap.mapLayers, function(id, mapLayer){
+            if (mapLayer.isAddedToMap(this))
+                mapLayer.removeFrom(this);
+        }.bind(this));
+    }
+
+
+    nsMap.selectLayerInModal = function( map ){
+
+        let bsMenu = nsMap.main[nsMap.setupOptions.menuPanelId].mmenu;
+
+        if (!bsMenu) return;
+
+        let clonedBsMenu = bsMenu.clone({
+			isFullClone: false,
+
+            getState: function(menuItem){
+                let mapLayer = nsMap.getMapLayer(menuItem.id);
+                return mapLayer.isAddedToMap(this);
+            }.bind(map),
+
+            forceOnClick: function(id, state, menuItem){
+                let mapLayer = nsMap.getMapLayer(menuItem.id);
+                if (mapLayer){
+                    if (mapLayer.isAddedToMap(this))
+                        mapLayer.removeFrom(this);
+                    else
+                        mapLayer.addTo(this);
+                }
+            }.bind(map)
+        });
+
+        //Create fixed-content
+        const miniMapDim  = 80;
+        let $fixedContent = null;
+        if (nsMap.hasMultiMaps && (nsMap.multiMaps.setup.maps > 1)){
+            $fixedContent = $('<div></div>')
+                                .windowRatio(miniMapDim, miniMapDim*2)
+                                .addClass('mx-auto map-sync-zoom-offset') //map-sync-zoom-offset to have claasses for sub-maps
+                                .css('margin', '5px');
+
+            L.multiMaps($fixedContent, {
+                local : true,
+                border: true,
+                update: function( index, map, $mapContainer ){
+                    $mapContainer.toggleClass('current-map', this._multiMapsIndex == index);
+                }.bind(map)
+            }).set( nsMap.multiMaps.setup.id );
+        }
+
+        clonedBsMenu.showInModal({
+            header: {
+                icon: 'fa-layer-group',
+                text: {da:'Vælg lag', en:'Select layers'},
+            },
+			show              : false,
+			minHeight         : 300,
+			sameWidthAsCloneOf: true,
+            fixedContent      : $fixedContent,
+            buttons: [{
+                icon    : ns.icons.reset,
+                text    : ns.texts.reset,
+                onClick : map_reset.bind(map)
+            }]
+        }, true);
+    };
 
 }(jQuery, L, this, document));
 
@@ -148729,7 +149948,7 @@ Create mapSettingGroup = setting-group for each maps with settings for the map
                     text: ns.texts.reset,
                     onClick: function() { nsMap.resetMapSetting( map ); }
                 }],
-                helpId    : nsMap.setupOptions.topMenu.helpId.mapSetting,
+                helpId    : nsMap.setupOptions.topPanel.helpId.mapSetting,
                 helpButton: true
             },
             accordionList: [],
@@ -149220,7 +150439,7 @@ Create mapSettingGroup = setting-group for each maps with settings for the map
                     icon: ns.icons.mapSettingSingle,
                     text: ns.texts.mapSettingSingle
                 },
-                helpId    : nsMap.setupOptions.topMenu.helpId.mapSetting,
+                helpId    : nsMap.setupOptions.topPanel.helpId.mapSetting,
                 helpButton: true,
                 buttons: [{
                     icon   : ns.icons.reset,
@@ -149308,7 +150527,7 @@ Create mapSettingGroup = setting-group for each maps with settings for the map
                     text: ns.texts.mapSettingGlobal
                 },
                 closeButton: true,
-                helpId     : nsMap.setupOptions.topMenu.helpId.multiMapSetting,
+                helpId     : nsMap.setupOptions.topPanel.helpId.multiMapSetting,
                 scroll     : false,
                 helpButton : true,
                 buttons: [{
@@ -149526,7 +150745,7 @@ related issues in map sync
                 static    : false,
                 keyboard  : true,
                 content   : content,
-                helpId    : nsMap.setupOptions.topMenu.helpId.multiMapSetting,
+                helpId    : nsMap.setupOptions.topPanel.helpId.multiMapSetting,
                 helpButton: true,
                 buttons: [{
                     icon   : ns.icons.reset,
@@ -150853,7 +152072,7 @@ search-result.js
         if (lang != 'en')
             params['accept-language'] = lang + ',en';
 
-        return nsMap.setupOptions.topMenu.nominatim + '/lookup' + L.Util.getParamString(params);
+        return nsMap.setupOptions.topPanel.nominatim + '/lookup' + L.Util.getParamString(params);
     };
 
 	//Extend the prototype
@@ -150895,15 +152114,15 @@ search-result.js
             //Create the dynamic part of the modal-options
             let langList = [lang, 'en', this.localLang],
                 nameList = [];
-            
+
             langList.forEach( lang => {
                 if (lang && this.name[lang])
                     nameList.push(this.name[lang]);
-            }, this);                
+            }, this);
 
             nameList = removeDuplicates(nameList);
             nameList[0] = '<strong>' + nameList[0] + '</strong>';
-            
+
             let content = [{
                     label    : nameList.length == 1 ? {da:'Navn', en:'Name'} : {da:'Navne', en:'Names'},
                     type     : 'text',
@@ -150911,7 +152130,7 @@ search-result.js
                     center   : true,
                     //textStyle: 'fw-bold'
                 }];
-            
+
             //Add position.
             if (this.inclPositionIsDetails)
                 content.push({
@@ -150949,20 +152168,20 @@ search-result.js
                 part.type = null;
                 newPart.content = part;
                 content[index] = newPart;
-            });                
+            });
 
             content = {
                 type        : 'accordion',
                 list        : content,
-                neverClose  : true,                      
-                multiOpen   : true,                     
+                neverClose  : true,
+                multiOpen   : true,
                 allOpen     : true,
             };
 
             this.langDetails = this.langDetails || {};
             this.langDetails[lang] = this.langDetails[lang] || {
                 header : this.header,
-                content: content    
+                content: content
             };
             return this.langDetails[lang];
         },
@@ -150987,11 +152206,11 @@ search-result.js
 
             if (opt.isPosition){
                 this.names = this.name;
-            }                
+            }
             else {
                 if (opt.namedetails){
                     //There are multi-language names for the Search-Result
-                    
+
                     let localName   = opt.namedetails.name || opt.namedetails['name:'+this.localLang] || '',
                         defaultName = opt.namedetails['name:en'] || '';
 
@@ -151004,13 +152223,13 @@ search-result.js
                     if (this.localLang){
                         langList.push(this.localLang);
                         langList = removeDuplicates(langList);
-                    }                        
-                     
+                    }
+
                     //Set name = {lang:STRING}
                     this.name = {};
                     langList.forEach( lang => {
-                        this.name[lang] = opt.namedetails['name:'+lang] || opt.name || defaultName;                         
-                    }, this);                        
+                        this.name[lang] = opt.namedetails['name:'+lang] || opt.name || defaultName;
+                    }, this);
 
                     /*
                     Construct names = {lang:STRING} for all lang in i18next.languages
@@ -151018,7 +152237,7 @@ search-result.js
                     Eq. names = {
                             da: "Danmark",
                             en: "Denmark (Danmark)"
-                        }                            
+                        }
                     */
                     const localNameStr = localName ? ' (' + localName + ')' : '';
                     this.names = {};
@@ -151140,7 +152359,7 @@ search-result.js
                         interactive        : true,
 
                         className: 'hide-for-leaflet-zoom-'+this.visibleAtZoom+'-down'
-                            
+
                     });
 
                     poly.bindTooltip(this.header);
@@ -151464,8 +152683,8 @@ search.js
         searchHistoryList.goLast();
         searchHistoryList.add(text);
 
-        //Update input in top-menu with latest search
-        nsMap.main.topMenuObject.searchInput.val(searchText);
+        //Update input in top-panel with latest search
+        nsMap.main.topPanelObject.searchInput.val(searchText);
 
         //First: Search for position
         var latLngList = nsMap.text2LatLng(text);
@@ -151503,7 +152722,7 @@ search.js
             if (lang != 'en')
                 params['accept-language'] = lang + ',en';
             $.workingOn();
-            Promise.getJSON( nsMap.setupOptions.topMenu.nominatim + '/search' + L.Util.getParamString(params), {}, nominatim_response, nominatim_reject );
+            Promise.getJSON( nsMap.setupOptions.topPanel.nominatim + '/search' + L.Util.getParamString(params), {}, nominatim_response, nominatim_reject );
         }
     };
 

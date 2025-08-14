@@ -9,7 +9,7 @@
     <meta name='copyright' content='FCOO'>
     <meta name='owner' content='FCOO'>
 
-    <link  href="bower_components.css" rel="stylesheet">    
+    <link  href="bower_components.css" rel="stylesheet">
     <link  href="../src/fcoo-maps-niord.css" rel="stylesheet">
 </head>
 
@@ -17,11 +17,11 @@
     <script>
         window.fcoo = window.fcoo || {};
         window.fcoo.DEMO_VERSION = true;
-        
-        
+
+
     </script>
 
-    
+
     <script src="bower_components.js"></script>
     <script src="../src/fcoo-maps-niord.js"></script>
 
@@ -30,17 +30,18 @@
         window.fcoo.path.host = 'bal.fcoo.dk';
 
 
-        
+
         window.fcoo.map.createApplication(
             //options
             {
-                applicationName: {da:'DA: fcoo-maps-niord', en:'EN: fcoo-maps-niord'},
-                leftMenu       : {isLayerMenu: true, width: 350},
+                applicationName : {da:'DA: fcoo-maps-niord', en:'EN: fcoo-maps-niord'},
+                leftMenu        : {isLayerMenu: true, width: 350},
+                menuOptions     : {keepAll: true, favorites: true}
             },
 
             //layerMenu
             [{  icon: {"colorClassName": "fa-navigation", "faClassName": "fa-shapes"},
-                text: {da: "Navigation og Sikkerhed", en: "Navigation and Safety"}, 
+                text: {da: "Navigation og Sikkerhed", en: "Navigation and Safety"},
                 list:['NAVIGATION_NIORD']
             }]
         );
